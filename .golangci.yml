@@ -1,0 +1,49 @@
+# golangci-lint v2 configuration for Comax Secrets.
+#
+# Migrated to v2 because v1.x is built with Go 1.24 and rejects modules
+# targeting Go 1.25 (see go.mod). CI pins v2.4.0 (Go 1.25 toolchain).
+
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosec
+    - misspell
+    - revive
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (*database/sql.Rows).Close
+        - (*net/http.Response).Body.Close
+    gosec:
+      excludes:
+        - G304
+        - G306
+        - G101
+    revive:
+      rules:
+        - name: unused-parameter
+          disabled: true
+        - name: var-naming
+          disabled: true
+        - name: exported
+          disabled: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

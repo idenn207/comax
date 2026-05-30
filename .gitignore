@@ -1,1 +1,37 @@
+# Worktree
 .worktrees/
+
+# Build artefacts
+/bin/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Coverage
+coverage.out
+coverage.html
+cov_*
+
+# Go workspace files (kept out of version control)
+go.work
+go.work.sum
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# Project-specific (per plan: keys and DB live outside the repo)
+.secretrc
+.secretrc.*
+/data/
+/keys/
+*.key
+
+# Local env files (the very thing we're replacing)
+.env
+.env.*
+!.env.example
