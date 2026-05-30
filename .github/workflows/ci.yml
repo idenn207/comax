@@ -65,7 +65,10 @@ jobs:
           cache: true
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: latest
+          # Pinned to a v2.x build (built with Go 1.25) because v1.64.8 — the
+          # last v1 release — was built with Go 1.24 and refuses any module
+          # whose go directive is >= 1.25. See go.mod (`go 1.25.0`).
+          version: v2.4.0
           args: --timeout=5m
 
   build:

@@ -1,14 +1,16 @@
-# golangci-lint configuration for Comax Secrets.
+# golangci-lint v2 configuration for Comax Secrets.
 #
-# Kept intentionally small in M1; tune severities as the codebase grows.
-# Compatible with both golangci-lint v1.55+ and v2.x.
+# Migrated to v2 because v1.x is built with Go 1.24 and rejects modules
+# targeting Go 1.25 (see go.mod). CI pins v2.4.0 (Go 1.25 toolchain).
+
+version: "2"
 
 run:
   timeout: 5m
   tests: true
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - errcheck
     - govet
@@ -20,6 +22,5 @@ linters:
     - revive
 
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
