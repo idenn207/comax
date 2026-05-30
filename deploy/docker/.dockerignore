@@ -1,0 +1,17 @@
+.git
+.github
+.worktrees
+.claude
+.vscode
+.idea
+bin
+docs
+test
+*.md
+!README.md
+cov_*
+coverage.*
+*.out
+data
+keys
+*.key

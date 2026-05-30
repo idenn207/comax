@@ -16,6 +16,19 @@
   "model": "opus",
   "outputStyle": "Explanatory",
   "effortLevel": "xhigh",
-  "autoUpdatesChannel": "latest"
+  "autoUpdatesChannel": "latest",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node .claude/hooks/golangci-lint-prepush.cjs"
+          }
+        ]
+      }
+    ]
+  }
 }
 

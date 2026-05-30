@@ -1,0 +1,54 @@
+# Comax Secrets — single-node self-host deployment.
+#
+# What this compose file ships:
+#   - The secret-server container with a bind-mounted data dir (SQLite
+#     lives in ./data) and key dir (./keys/master.key).
+#   - A healthcheck against /healthz so `docker compose up -d` returns
+#     only after the server is actually serving.
+#
+# First-boot UX (matches Task 12 in the plan):
+#   $ docker compose up -d
+#   $ docker compose logs secret-server | grep -A 2 "bootstrap admin token"
+# The plaintext bootstrap token is printed exactly once on the first
+# boot. Save it, then run `secret login --server http://<host>:8080
+# --token <pasted>`.
+#
+# Why bind mounts and not named volumes:
+#   - Operators on a NAS expect ./data and ./keys to be visible from the
+#     host filesystem so they can back them up the same way they back
+#     up everything else.
+#   - The master key file's 0600 enforcement only makes sense if the
+#     operator can actually see the file's mode bits.
+
+services:
+  secret-server:
+    image: comax-secrets-server:latest
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      args:
+        # `docker compose build --build-arg VERSION=$(git describe ...)`
+        # for a production tag; default works for local dev.
+        VERSION: ${VERSION:-compose-dev}
+    container_name: comax-secrets-server
+    restart: unless-stopped
+    ports:
+      - "${COMAX_PORT:-8080}:8080"
+    environment:
+      COMAX_LISTEN: ":8080"
+      COMAX_DB_PATH: "/app/data/secrets.db"
+      COMAX_MASTER_KEY_FILE: "/app/keys/master.key"
+      COMAX_AUTO_GENERATE_KEY: "1"
+    volumes:
+      - ./data:/app/data
+      - ./keys:/app/keys
+    # The distroless image has no shell, so the server binary acts as
+    # its own healthcheck client: --health does a GET against
+    # --health-url and exits 0 on HTTP 200. This is the canonical
+    # "no curl in distroless" pattern.
+    healthcheck:
+      test: ["CMD", "/app/secret-server", "--health", "--health-url", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s

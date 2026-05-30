@@ -5,39 +5,56 @@ Built to replace hand-synced `.env` files with one source of truth that ships
 encrypted secrets to dev workstations, CI runners, and production
 containers.
 
-> **Status**: Milestone 1 in progress — see
-> [`.claude/plans/comax-secrets.plan.md`](.claude/plans/comax-secrets.plan.md).
-> Today the binaries only print their version; subcommands land in
-> Tasks 7–10.
+> **Status**: Milestone 1 server + CLI shipped end-to-end. Operator
+> dogfood (Task 14) is the remaining acceptance gate. See
+> [`.claude/plans/comax-secrets.plan.md`](.claude/plans/comax-secrets.plan.md)
+> for the full task list and [`docs/quickstart.md`](docs/quickstart.md)
+> for the 5-minute walkthrough.
 
 ## Layout
 
 ```
 .
 ├── cmd/
-│   ├── server/        # secret-server binary entrypoint
+│   ├── server/        # secret-server binary entrypoint (HTTP server)
 │   └── cli/           # secret CLI binary entrypoint
 ├── internal/
+│   ├── auth/          # bearer tokens + bootstrap flow
+│   ├── cli/           # CLI helpers (credentials, dotenv, envctx, secretrc)
+│   ├── crypto/        # AES-256-GCM seal/open + KeyProvider interface
+│   ├── secret/        # ${{ env.KEY }} resolver + inheritance
+│   ├── server/        # HTTP handlers, router, middleware
+│   ├── store/         # SQLite store + per-entity repositories
 │   └── version/       # shared build-time version constant
+├── pkg/
+│   └── client/        # HTTP client shared by CLI + future SDK
+├── deploy/
+│   ├── docker/        # Multi-stage Dockerfile (distroless final)
+│   └── compose/       # docker-compose.yml with bind-mounted data + keys
+├── docs/              # quickstart, threat-model, perf, dogfood
 ├── .github/workflows/ # CI: test, lint, cross-compile matrix
 ├── Makefile           # build / test / lint / xbuild / docker
 └── .claude/           # PRDs, plans, working notes
 ```
 
-`internal/store`, `internal/crypto`, `internal/server`, `internal/auth`,
-`internal/config`, `internal/secret`, and `pkg/client` are added in
-Tasks 2–9.
-
-## Quickstart (M1 placeholder)
+## Quickstart
 
 ```bash
+docker compose -f deploy/compose/docker-compose.yml up -d --build
+docker compose -f deploy/compose/docker-compose.yml logs secret-server \
+  | grep -A 1 "bootstrap admin token"   # capture the token (one shot)
+
 make build
-./bin/secret-server   # prints: secret-server <version>
-./bin/secret          # prints: secret <version>
+./bin/secret login --server http://localhost:8080 --token <token>
+./bin/secret init  --project my-app --envs local,dev,prod --default-env local
+./bin/secret push  --file .env
+./bin/secret run -- npm run dev         # secrets injected as env, no disk write
 ```
 
-Real quickstart (`docker compose up` → `secret login` → `secret push`) ships
-with Task 13.
+See [docs/quickstart.md](docs/quickstart.md) for the full 5-minute
+walkthrough, [docs/threat-model.md](docs/threat-model.md) for the
+operator security obligations, and [docs/perf.md](docs/perf.md) for
+the 300 ms cold-start budget.
 
 ## Development
 
