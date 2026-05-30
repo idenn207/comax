@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "MAX_OUTPUT_TOKENS": "8000",
+    "MAX_THINKING_TOKENS": "10000",
+    "ENABLE_TOOL_SEARCH": "auto:3",
+    "CLAUDE_CODE_SUBAGENT_MODEL": "haiku",
+    "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "100000",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50",
+    "ECC_DISABLED_HOOKS": "pre:bash:gateguard-fact-force,pre:edit-write:gateguard-fact-force"
+  },
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": false,
+    "ecc@ecc": true
+  },
+  "model": "opus",
+  "outputStyle": "Explanatory",
+  "effortLevel": "xhigh",
+  "autoUpdatesChannel": "latest"
+}
+
