@@ -93,6 +93,7 @@ func setupColdStartFixture(tb testing.TB) *benchFixture {
 	if runtime.GOOS == "windows" {
 		binPath += ".exe"
 	}
+	// #nosec G204 -- test-only: binPath is tb.TempDir() output; package path is a literal.
 	build := exec.Command("go", "build", "-trimpath", "-o", binPath, "github.com/idenn207/comax-secrets/cmd/cli")
 	if out, err := build.CombinedOutput(); err != nil {
 		tb.Fatalf("build CLI: %v\n%s", err, out)
@@ -152,6 +153,7 @@ func setupColdStartFixture(tb testing.TB) *benchFixture {
 		{"--credentials", credPath, "init", "--project", "comax", "--envs", "dev,prod", "--default-env", "dev"},
 		{"--credentials", credPath, "set", "BENCH_KEY=hello", "--quiet"},
 	} {
+		// #nosec G204 -- test-only: binPath and args are constructed by the test harness.
 		cmd := exec.Command(binPath, args...)
 		cmd.Dir = cwd
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -166,6 +168,7 @@ func setupColdStartFixture(tb testing.TB) *benchFixture {
 // percentile test.
 func singleColdStart(fx *benchFixture) (time.Duration, error) {
 	args := append([]string{"--credentials", fx.credPath, "run", "--quiet", "--"}, childArgs()...)
+	// #nosec G204 -- test-only: fx.binary is the just-built CLI in tb.TempDir(); args are test literals.
 	cmd := exec.Command(fx.binary, args...)
 	cmd.Dir = fx.cwd
 	start := time.Now()
