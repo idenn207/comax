@@ -31,6 +31,14 @@ go.work.sum
 /keys/
 *.key
 
+# Compose bind-mount artefacts (deploy/compose/{data,keys})
+deploy/compose/data/
+deploy/compose/keys/
+**/secrets.db
+**/secrets.db-journal
+**/secrets.db-wal
+**/secrets.db-shm
+
 # Local env files (the very thing we're replacing)
 .env
 .env.*
