@@ -131,3 +131,25 @@ func TestEnvRepo_ProjectFKCascade(t *testing.T) {
 		t.Errorf("expected envs cascaded; got %d", len(got))
 	}
 }
+
+func TestEnvRepo_ByID(t *testing.T) {
+	db := newTestDB(t)
+	p := mustCreateProject(t, db, "app")
+	e := mustCreateEnv(t, db, p.ID, "dev", "")
+
+	got, err := NewEnvRepo(db).ByID(context.Background(), e.ID)
+	if err != nil {
+		t.Fatalf("ByID: %v", err)
+	}
+	if got.ID != e.ID || got.Name != "dev" || got.ProjectID != p.ID {
+		t.Errorf("ByID returned %+v; want id=%d name=dev project=%d", got, e.ID, p.ID)
+	}
+}
+
+func TestEnvRepo_ByID_NotFound(t *testing.T) {
+	db := newTestDB(t)
+	_, err := NewEnvRepo(db).ByID(context.Background(), 9999)
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("err = %v; want %v", err, ErrNotFound)
+	}
+}

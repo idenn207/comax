@@ -28,6 +28,47 @@ func (r *TokenRepo) Count(ctx context.Context) (int64, error) {
 	return n, nil
 }
 
+// BootstrapIfEmpty inserts a token only when the table is empty. The
+// check and the insert are a single statement, so concurrent /bootstrap
+// calls cannot both succeed: SQLite serialises writes, and the
+// WHERE (SELECT COUNT(*) ...) = 0 guard re-evaluates against the
+// committed state. Returns (token, true, nil) when the row was created,
+// (zero, false, nil) when the table already had tokens, or
+// (zero, false, err) on a real driver error. A UNIQUE collision on name
+// is folded into the "already bootstrapped" branch as a defensive net.
+func (r *TokenRepo) BootstrapIfEmpty(ctx context.Context, name string, tokenHash []byte) (ServiceToken, bool, error) {
+	now := nowUnix()
+	res, err := r.db.ExecContext(ctx,
+		`INSERT INTO service_tokens (name, token_hash, created_at)
+		 SELECT ?, ?, ?
+		 WHERE (SELECT COUNT(*) FROM service_tokens) = 0`,
+		name, tokenHash, now,
+	)
+	if err != nil {
+		if isUniqueViolation(err) {
+			return ServiceToken{}, false, nil
+		}
+		return ServiceToken{}, false, fmt.Errorf("bootstrap token %q: %w", name, err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return ServiceToken{}, false, fmt.Errorf("bootstrap token %q: %w", name, err)
+	}
+	if n == 0 {
+		return ServiceToken{}, false, nil
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return ServiceToken{}, false, fmt.Errorf("bootstrap token %q: %w", name, err)
+	}
+	return ServiceToken{
+		ID:        id,
+		Name:      name,
+		TokenHash: tokenHash,
+		CreatedAt: unixSeconds(now),
+	}, true, nil
+}
+
 // Create inserts a new token. Both name and tokenHash must be unique;
 // either collision returns ErrConflict.
 func (r *TokenRepo) Create(ctx context.Context, name string, tokenHash []byte) (ServiceToken, error) {

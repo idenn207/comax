@@ -107,14 +107,25 @@ type AuditEntry struct {
 	CreatedAt  time.Time
 }
 
-// Open returns a *sql.DB pointed at dsn with foreign keys enforced on
-// every pooled connection.
+// Open returns a *sql.DB pointed at dsn with foreign keys enforced and
+// a busy-timeout configured on every pooled connection.
 //
 // dsn may be any modernc.org/sqlite-compatible path or URI. Bare paths
 // are normalised to file: URIs so pragma appending stays predictable on
 // Windows (where paths begin with "C:" and would otherwise collide with
-// URI query parsing). If the caller did not specify the foreign_keys
-// pragma we add it. Examples:
+// URI query parsing). The caller's existing pragmas (if any) are
+// preserved; defaults are appended only when not already present.
+//
+// Defaults applied:
+//
+//   - foreign_keys=1: FK constraints are enforced per-connection (SQLite
+//     does not enforce them globally).
+//   - busy_timeout=5000: when a writer is blocked on the database lock,
+//     wait up to 5 s instead of returning SQLITE_BUSY immediately.
+//     SQLite is single-writer at the file level; without this, every
+//     contending caller would need to implement its own retry loop.
+//
+// Examples:
 //
 //	store.Open("./data/secrets.db")               // bare path
 //	store.Open("file:./data/secrets.db")          // file URI
@@ -124,13 +135,8 @@ func Open(dsn string) (*sql.DB, error) {
 	if !strings.HasPrefix(dsn, "file:") && dsn != ":memory:" {
 		dsn = "file:" + filepath.ToSlash(dsn)
 	}
-	if !strings.Contains(dsn, "_pragma=foreign_keys") {
-		sep := "?"
-		if strings.Contains(dsn, "?") {
-			sep = "&"
-		}
-		dsn = dsn + sep + "_pragma=foreign_keys(1)"
-	}
+	dsn = appendPragma(dsn, "foreign_keys", "foreign_keys(1)")
+	dsn = appendPragma(dsn, "busy_timeout", "busy_timeout(5000)")
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite: %w", err)
@@ -140,6 +146,22 @@ func Open(dsn string) (*sql.DB, error) {
 		return nil, fmt.Errorf("ping sqlite: %w", err)
 	}
 	return db, nil
+}
+
+// appendPragma adds a _pragma=<value> query parameter to dsn iff a pragma
+// matching probe is not already present. probe is the bare pragma name
+// (e.g. "busy_timeout"); value is the full pragma expression including
+// the argument (e.g. "busy_timeout(5000)"). This keeps caller overrides
+// intact: store.Open("file:db?_pragma=busy_timeout(10000)") wins.
+func appendPragma(dsn, probe, value string) string {
+	if strings.Contains(dsn, "_pragma="+probe) {
+		return dsn
+	}
+	sep := "?"
+	if strings.Contains(dsn, "?") {
+		sep = "&"
+	}
+	return dsn + sep + "_pragma=" + value
 }
 
 // isUniqueViolation returns true when err comes from a SQLite UNIQUE

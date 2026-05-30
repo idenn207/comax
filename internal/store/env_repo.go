@@ -47,6 +47,33 @@ func (r *EnvRepo) Create(ctx context.Context, projectID int64, name, inheritsFro
 	}, nil
 }
 
+// ByID returns the env with the given primary key, or ErrNotFound.
+// Used by the reference resolver which walks the inherits_from chain
+// and only has IDs in hand once it has descended one level.
+func (r *EnvRepo) ByID(ctx context.Context, id int64) (Environment, error) {
+	var (
+		e                    Environment
+		inherits             sql.NullString
+		createdAt, updatedAt int64
+	)
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, project_id, name, inherits_from, created_at, updated_at
+		   FROM environments
+		  WHERE id = ?`,
+		id,
+	).Scan(&e.ID, &e.ProjectID, &e.Name, &inherits, &createdAt, &updatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Environment{}, fmt.Errorf("env id=%d: %w", id, ErrNotFound)
+	}
+	if err != nil {
+		return Environment{}, fmt.Errorf("lookup env id=%d: %w", id, err)
+	}
+	e.InheritsFrom = inherits.String
+	e.CreatedAt = unixSeconds(createdAt)
+	e.UpdatedAt = unixSeconds(updatedAt)
+	return e, nil
+}
+
 // ByName returns the env named name within projectID, or ErrNotFound.
 func (r *EnvRepo) ByName(ctx context.Context, projectID int64, name string) (Environment, error) {
 	var (

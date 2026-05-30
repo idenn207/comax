@@ -127,3 +127,55 @@ func TestTokenRepo_TouchLastUsedNotFound(t *testing.T) {
 		t.Errorf("err = %v; want %v", err, ErrNotFound)
 	}
 }
+
+func TestTokenRepo_BootstrapIfEmpty(t *testing.T) {
+	db := newTestDB(t)
+	repo := NewTokenRepo(db)
+	ctx := context.Background()
+
+	tok, created, err := repo.BootstrapIfEmpty(ctx, "bootstrap", hashOf("plain-one"))
+	if err != nil {
+		t.Fatalf("first BootstrapIfEmpty: %v", err)
+	}
+	if !created || tok.ID == 0 {
+		t.Fatalf("first call: created=%v id=%d; want created=true id>0", created, tok.ID)
+	}
+
+	// Second call must be a no-op — table is no longer empty.
+	zero, created2, err := repo.BootstrapIfEmpty(ctx, "another", hashOf("plain-two"))
+	if err != nil {
+		t.Fatalf("second BootstrapIfEmpty: %v", err)
+	}
+	if created2 {
+		t.Error("second call: created=true; want false")
+	}
+	if zero.ID != 0 {
+		t.Errorf("second call ID = %d; want 0", zero.ID)
+	}
+
+	if n, _ := repo.Count(ctx); n != 1 {
+		t.Errorf("Count = %d; want 1 after two bootstrap attempts", n)
+	}
+}
+
+func TestTokenRepo_BootstrapIfEmpty_NameCollisionFoldsToFalse(t *testing.T) {
+	// Pre-seed a row, then call BootstrapIfEmpty with the same name. The
+	// WHERE COUNT(*) = 0 guard already makes this a no-op; the UNIQUE on
+	// name is the defensive belt-and-braces, exercised here to lock in
+	// that the helper does not surface ErrConflict in this branch.
+	db := newTestDB(t)
+	repo := NewTokenRepo(db)
+	ctx := context.Background()
+
+	if _, err := repo.Create(ctx, "bootstrap", hashOf("seed")); err != nil {
+		t.Fatalf("seed Create: %v", err)
+	}
+
+	_, created, err := repo.BootstrapIfEmpty(ctx, "bootstrap", hashOf("new"))
+	if err != nil {
+		t.Fatalf("BootstrapIfEmpty: %v", err)
+	}
+	if created {
+		t.Error("created=true on pre-seeded table; want false")
+	}
+}
