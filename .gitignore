@@ -1,3 +1,6 @@
+# Worktree
+.worktrees/
+
 # Build artefacts
 /bin/
 *.exe
