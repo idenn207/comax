@@ -13,6 +13,7 @@
 # Coverage
 coverage.out
 coverage.html
+cov_*
 
 # Go workspace files (kept out of version control)
 go.work
