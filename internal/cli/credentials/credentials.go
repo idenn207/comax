@@ -112,13 +112,13 @@ func SaveTo(path string, creds Credentials) error {
 	// braces: explicit Chmod so future Go versions can't drift.
 	if runtime.GOOS != "windows" {
 		if err := tmp.Chmod(0o600); err != nil {
-			tmp.Close()
+			_ = tmp.Close()
 			_ = os.Remove(tmp.Name())
 			return fmt.Errorf("chmod temp: %w", err)
 		}
 	}
 	if _, err := tmp.Write(raw); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		_ = os.Remove(tmp.Name())
 		return fmt.Errorf("write temp: %w", err)
 	}

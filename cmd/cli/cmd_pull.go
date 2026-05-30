@@ -90,7 +90,7 @@ func writeAtomic(path string, fn func(io.Writer) error) error {
 	}
 	tmpPath := tmp.Name()
 	if err := fn(tmp); err != nil {
-		tmp.Close()
+		_ = tmp.Close()
 		_ = os.Remove(tmpPath)
 		return err
 	}

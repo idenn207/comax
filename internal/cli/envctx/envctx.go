@@ -129,6 +129,7 @@ func Load(dir, flag string) (Result, error) {
 // budget is tight (Task 11) and shelling out for one branch name on
 // commands that need it is cheaper than pulling a Go git package.
 func currentGitBranch(dir string) string {
+	// #nosec G204 -- dir is the operator-supplied working directory; git is a trusted binary.
 	cmd := exec.Command("git", "-C", dir, "branch", "--show-current")
 	out, err := cmd.Output()
 	if err != nil {
