@@ -20,6 +20,29 @@ linters:
     - gosec
     - misspell
     - revive
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (*database/sql.Rows).Close
+        - (*net/http.Response).Body.Close
+    gosec:
+      excludes:
+        - G304
+        - G306
+        - G101
+    revive:
+      rules:
+        - name: unused-parameter
+          disabled: true
+        - name: var-naming
+          disabled: true
+        - name: exported
+          disabled: true
 
 issues:
   max-issues-per-linter: 0

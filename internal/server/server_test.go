@@ -174,7 +174,7 @@ func TestProjects_CreateAndList(t *testing.T) {
 		t.Fatalf("create status = %d env=%+v", status, env)
 	}
 
-	status, env = ts.do(t, http.MethodPost, "/api/v1/projects", map[string]string{"name": "comax"})
+	status, _ = ts.do(t, http.MethodPost, "/api/v1/projects", map[string]string{"name": "comax"})
 	if status != http.StatusConflict {
 		t.Errorf("duplicate create status = %d; want 409", status)
 	}
