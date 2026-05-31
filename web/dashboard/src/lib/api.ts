@@ -55,6 +55,25 @@ export function getCsrfToken(): string | null {
   return sessionStorage.getItem(CSRF_STORAGE_KEY);
 }
 
+/**
+ * Hook called whenever the server signals the browser session is no
+ * longer valid (401 on any path other than session-create, or 403 with
+ * csrf_mismatch). The default is a no-op so the module stays usable in
+ * isolation (tests, scripts); main.tsx registers the real handler that
+ * drops CSRF + redirects to /login.
+ *
+ * Registered via a callback to avoid a circular import between api.ts
+ * (low-level fetch) and auth.ts / router (high-level shell).
+ */
+export type UnauthorizedHandler = (status: 401 | 403) => void;
+let onUnauthorized: UnauthorizedHandler = () => {};
+
+export function registerUnauthorizedHandler(handler: UnauthorizedHandler): void {
+  onUnauthorized = handler;
+}
+
+const SESSION_CREATE_PATH = '/api/v1/dashboard/session';
+
 export interface RequestOptions {
   method?: string;
   body?: unknown;
@@ -104,6 +123,15 @@ export async function apiFetch<T = unknown>(
   }
 
   const text = await response.text();
+
+  // 204 No Content (and any other intentionally empty success response)
+  // arrives with response.ok=true and an empty body. The DELETE
+  // /dashboard/session logout endpoint relies on this — without the
+  // early-return, we'd fall through to envelope parsing and throw.
+  if (response.ok && text.length === 0) {
+    return undefined as T;
+  }
+
   let envelope: Envelope<T> | null = null;
   if (text.length > 0) {
     try {
@@ -116,6 +144,23 @@ export async function apiFetch<T = unknown>(
   if (!response.ok || !envelope?.ok) {
     const code = envelope?.error?.code ?? 'unknown';
     const message = envelope?.error?.message ?? response.statusText;
+
+    // Auth signal: any 401 (unknown bearer / expired session) on a path
+    // other than session-create means the browser session is gone.
+    // 403 with csrf_mismatch on the cookie arm has the same UX — the
+    // session cannot mutate, so we treat it as logged-out too. POST
+    // /dashboard/session itself returns 401 on a bad token; bubble that
+    // to the form rather than triggering a redirect loop.
+    const isSessionCreate =
+      method === 'POST' && path === SESSION_CREATE_PATH;
+    if (!isSessionCreate) {
+      if (response.status === 401) {
+        onUnauthorized(401);
+      } else if (response.status === 403 && code === 'csrf_mismatch') {
+        onUnauthorized(403);
+      }
+    }
+
     throw new ApiError(response.status, code, message);
   }
 
