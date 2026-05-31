@@ -61,8 +61,8 @@ export function LoginPage() {
                   서비스 토큰
                 </Text>
                 <Text id="login-help" as="p" size="2" color="gray" mt="1">
-                  CLI에서 발급받은 토큰을 그대로 붙여넣으면 dashboard 세션 쿠키 + CSRF
-                  토큰을 발급받고 홈으로 이동합니다.
+                  CLI에서 발급받은 토큰을 그대로 붙여넣으면 dashboard 세션 쿠키 + CSRF 토큰을
+                  발급받고 홈으로 이동합니다.
                 </Text>
               </Box>
               <TextArea

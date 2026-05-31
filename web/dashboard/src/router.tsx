@@ -4,20 +4,24 @@ import {
   createRoute,
   createRouter,
   redirect,
+  useParams,
 } from '@tanstack/react-router';
 
 import { isAuthenticated } from './lib/auth';
-import { HomePage } from './pages/Home';
+import { EnvSecretsPage } from './pages/EnvSecrets';
 import { LoginPage } from './pages/Login';
+import { ProjectPage } from './pages/Project';
+import { ProjectsPage } from './pages/Projects';
 
 /**
- * Code-based router for the scaffold. Two routes (/, /login) cover the
- * Task 6 surface; migrating to file-based routing makes sense once Task
- * 7+ adds nested project/env/secrets routes that benefit from the
- * colocation.
+ * Code-based router. Routes:
+ *   /                                    → Projects list
+ *   /projects/$project                   → Project detail (envs)
+ *   /projects/$project/envs/$env         → Env secrets table + history
+ *   /login                               → Login form
  *
  * defaultPreload='intent' starts loaders on hover/focus so navigation
- * feels instant once Task 7 introduces per-route queries.
+ * feels instant after the operator scans the project/env grid.
  *
  * Route guards (beforeLoad):
  *   - Protected routes throw redirect({ to: '/login' }) when there is
@@ -25,10 +29,14 @@ import { LoginPage } from './pages/Login';
  *     pre-render hop and never mounts the protected component, so the
  *     dashboard shell never makes an authenticated fetch from an
  *     unauthenticated context.
- *   - /login does the inverse: if the operator is already logged in,
- *     punt them to / so back-button doesn't strand them on a useless
- *     form.
+ *   - /login does the inverse: already-logged-in operators bounce home.
  */
+
+function requireAuth() {
+  if (!isAuthenticated()) {
+    throw redirect({ to: '/login' });
+  }
+}
 
 const rootRoute = createRootRoute({
   component: () => <Outlet />,
@@ -37,12 +45,22 @@ const rootRoute = createRootRoute({
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
-  beforeLoad: () => {
-    if (!isAuthenticated()) {
-      throw redirect({ to: '/login' });
-    }
-  },
-  component: HomePage,
+  beforeLoad: requireAuth,
+  component: ProjectsPage,
+});
+
+const projectRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$project',
+  beforeLoad: requireAuth,
+  component: ProjectRouteComponent,
+});
+
+const envRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/projects/$project/envs/$env',
+  beforeLoad: requireAuth,
+  component: EnvRouteComponent,
 });
 
 const loginRoute = createRoute({
@@ -56,7 +74,19 @@ const loginRoute = createRoute({
   component: LoginPage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute]);
+// eslint-disable-next-line react-refresh/only-export-components
+function ProjectRouteComponent() {
+  const { project } = useParams({ from: '/projects/$project' });
+  return <ProjectPage projectName={project} />;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+function EnvRouteComponent() {
+  const { project, env } = useParams({ from: '/projects/$project/envs/$env' });
+  return <EnvSecretsPage projectName={project} envName={env} />;
+}
+
+const routeTree = rootRoute.addChildren([indexRoute, projectRoute, envRoute, loginRoute]);
 
 export const router = createRouter({
   routeTree,

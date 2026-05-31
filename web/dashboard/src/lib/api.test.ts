@@ -105,7 +105,10 @@ describe('apiFetch — error mapping', () => {
 
   it('throws ApiError on invalid JSON', async () => {
     fetchMock.mockResolvedValueOnce(
-      new Response('<html>not json</html>', { status: 500, headers: { 'Content-Type': 'text/html' } }),
+      new Response('<html>not json</html>', {
+        status: 500,
+        headers: { 'Content-Type': 'text/html' },
+      }),
     );
 
     await expect(apiFetch('/api/v1/projects')).rejects.toMatchObject({
@@ -153,9 +156,9 @@ describe('apiFetch — unauthorized handler', () => {
       jsonResponse(403, { ok: false, error: { code: 'csrf_mismatch', message: 'csrf' } }),
     );
 
-    await expect(
-      apiFetch('/api/v1/projects', { method: 'POST', body: {} }),
-    ).rejects.toBeInstanceOf(ApiError);
+    await expect(apiFetch('/api/v1/projects', { method: 'POST', body: {} })).rejects.toBeInstanceOf(
+      ApiError,
+    );
     expect(handler).toHaveBeenCalledWith(403);
   });
 

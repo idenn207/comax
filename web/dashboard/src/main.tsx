@@ -10,6 +10,7 @@ import { Theme } from '@radix-ui/themes';
 import { registerUnauthorizedHandler } from './lib/api';
 import { forceLogout } from './lib/auth';
 import { router } from './router';
+import { ToastProvider } from './components/Toast';
 
 /**
  * QueryClient lives at the app root so caches survive route changes.
@@ -53,7 +54,9 @@ createRoot(rootEl).render(
   <StrictMode>
     <Theme appearance="dark" accentColor="indigo" grayColor="slate" radius="medium">
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
       </QueryClientProvider>
     </Theme>
   </StrictMode>,

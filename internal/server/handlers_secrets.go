@@ -17,7 +17,14 @@ import (
 
 // secretView is the resolved-plaintext shape returned by GET endpoints.
 // The ciphertext blob never leaves the server.
+//
+// SecretID is the underlying secrets row id (parent env's row for
+// inherited entries). The dashboard needs it to correlate this view
+// with its version timeline: two keys in the same env can share a
+// current version number, and matching on (key, version) alone is
+// ambiguous.
 type secretView struct {
+	SecretID  int64     `json:"secret_id"`
 	Key       string    `json:"key"`
 	Value     string    `json:"value"`
 	Version   int64     `json:"version"`
@@ -81,6 +88,7 @@ func (s *Server) handleListSecrets(w http.ResponseWriter, r *http.Request) {
 	views := make([]secretView, 0, len(snap))
 	for k, sec := range snap {
 		views = append(views, secretView{
+			SecretID:  sec.SecretID,
 			Key:       k,
 			Value:     sec.Value,
 			Version:   sec.Version,
@@ -118,6 +126,7 @@ func (s *Server) handleGetSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeOK(w, http.StatusOK, secretView{
+		SecretID:  sec.SecretID,
 		Key:       keyName,
 		Value:     sec.Value,
 		Version:   sec.Version,
@@ -206,6 +215,7 @@ func (s *Server) handlePutSecret(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusCreated
 	}
 	writeOK(w, status, secretView{
+		SecretID:  up.Secret.ID,
 		Key:       up.Secret.Key,
 		Value:     body.Value,
 		Version:   up.Secret.Version,
@@ -326,6 +336,7 @@ func (s *Server) handleRollbackSecret(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeOK(w, http.StatusOK, secretView{
+		SecretID:  up.Secret.ID,
 		Key:       up.Secret.Key,
 		Value:     string(plain),
 		Version:   up.Secret.Version,
