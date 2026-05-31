@@ -25,12 +25,18 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("GET /api/v1/projects/{p}/envs", s.handleListEnvs)
 	mux.HandleFunc("POST /api/v1/projects/{p}/envs", s.handleCreateEnv)
+	mux.HandleFunc("GET /api/v1/projects/{p}/envs/{e}/diff", s.handleDiffEnvs)
 
 	mux.HandleFunc("GET /api/v1/projects/{p}/envs/{e}/secrets", s.handleListSecrets)
 	mux.HandleFunc("GET /api/v1/projects/{p}/envs/{e}/secrets/{k}", s.handleGetSecret)
 	mux.HandleFunc("PUT /api/v1/projects/{p}/envs/{e}/secrets/{k}", s.handlePutSecret)
+	mux.HandleFunc("DELETE /api/v1/projects/{p}/envs/{e}/secrets/{k}", s.handleDeleteSecret)
+	mux.HandleFunc("POST /api/v1/projects/{p}/envs/{e}/secrets/{k}/rollback", s.handleRollbackSecret)
+	mux.HandleFunc("GET /api/v1/projects/{p}/envs/{e}/secrets/{k}/versions/{v}", s.handleGetVersion)
 
 	mux.HandleFunc("GET /api/v1/projects/{p}/envs/{e}/versions", s.handleListVersions)
+
+	mux.HandleFunc("GET /api/v1/audit", s.handleListAudit)
 
 	// 404 for everything else, in our envelope shape.
 	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {

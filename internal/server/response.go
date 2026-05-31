@@ -67,6 +67,8 @@ func httpError(err error) (status int, code, message string) {
 	switch {
 	case errors.Is(err, store.ErrNotFound):
 		return http.StatusNotFound, "not_found", "resource not found"
+	case errors.Is(err, store.ErrVersionNotFound):
+		return http.StatusNotFound, "version_not_found", "secret version not found"
 	case errors.Is(err, store.ErrConflict):
 		return http.StatusConflict, "conflict", "resource already exists"
 	case errors.Is(err, auth.ErrAlreadyBootstrapped):

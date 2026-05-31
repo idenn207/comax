@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS secrets (
     version    INTEGER NOT NULL,             -- monotonic per-secret version counter
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
+    deleted_at INTEGER,                      -- NULL = live; non-NULL = soft-deleted (M2)
     UNIQUE (env_id, key)
 );
 

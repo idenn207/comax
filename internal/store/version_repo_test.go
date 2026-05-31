@@ -119,3 +119,41 @@ func TestVersionRepo_ListEmpty(t *testing.T) {
 		t.Errorf("expected empty; got %d", len(list))
 	}
 }
+
+func TestVersionRepo_ByVersionFound(t *testing.T) {
+	db := newTestDB(t)
+	proj := mustCreateProject(t, db, "app")
+	env := mustCreateEnv(t, db, proj.ID, "dev", "")
+	up, _ := NewSecretRepo(db).Upsert(context.Background(), env.ID, "K", []byte("v1"))
+	versRepo := NewVersionRepo(db)
+	ctx := context.Background()
+	if _, err := versRepo.Create(ctx, up.Secret.ID, 1, []byte("v1"), nil); err != nil {
+		t.Fatalf("seed v1: %v", err)
+	}
+	if _, err := versRepo.Create(ctx, up.Secret.ID, 2, []byte("v2"), nil); err != nil {
+		t.Fatalf("seed v2: %v", err)
+	}
+
+	got, err := versRepo.ByVersion(ctx, up.Secret.ID, 1)
+	if err != nil {
+		t.Fatalf("ByVersion: %v", err)
+	}
+	if got.Version != 1 {
+		t.Errorf("Version = %d; want 1", got.Version)
+	}
+	if !bytes.Equal(got.Ciphertext, []byte("v1")) {
+		t.Errorf("Ciphertext = %q; want v1", got.Ciphertext)
+	}
+}
+
+func TestVersionRepo_ByVersionMissing(t *testing.T) {
+	db := newTestDB(t)
+	proj := mustCreateProject(t, db, "app")
+	env := mustCreateEnv(t, db, proj.ID, "dev", "")
+	up, _ := NewSecretRepo(db).Upsert(context.Background(), env.ID, "K", []byte("v"))
+
+	_, err := NewVersionRepo(db).ByVersion(context.Background(), up.Secret.ID, 42)
+	if !errors.Is(err, ErrVersionNotFound) {
+		t.Errorf("err=%v; want ErrVersionNotFound", err)
+	}
+}

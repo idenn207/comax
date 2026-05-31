@@ -42,6 +42,11 @@ var (
 	ErrNotFound = errors.New("store: not found")
 	// ErrConflict is returned when a UNIQUE constraint blocks a write.
 	ErrConflict = errors.New("store: conflict")
+	// ErrVersionNotFound is returned by VersionRepo.ByVersion when the
+	// (secret_id, version) pair does not exist. Distinct from ErrNotFound
+	// so the dashboard can show "version 5 was deleted" vs "secret was
+	// never created".
+	ErrVersionNotFound = errors.New("store: version not found")
 )
 
 // Project is a top-level scope: typically one repo / one customer.
