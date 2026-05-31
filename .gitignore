@@ -13,8 +13,14 @@
 # Coverage
 coverage.out
 coverage.html
+coverage.txt
+coverage
+coverage-*
 cov_*
 /cover
+
+# Local test/bench scratch output
+*.log
 
 # PRP workflow scratch directories (per-feature plans/reports)
 .claude/PRPs/

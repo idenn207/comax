@@ -14,7 +14,7 @@
   - Worktree 다수 운영 시 worktree 마다 `.env` 를 새로 복사해야 함.
 - **확장 페인 (검증된 추가 관찰)**:
   - 인프라 자체의 환경별 설정 파일(`redis.[local|dev|prod].conf`, `nginx.[dev|prod].conf`)도 동일한 수작업 분기/복사로 관리됨 — 시크릿과 같은 패턴, 같은 페인.
-- **시장 증거 (참고)**: Infisical/Doppler GitHub 트래커 상의 "lightweight self-host", "single-binary", "config templating" 요청 다수 — 정량 검증은 *Assumption — needs validation via maintainer issue triage*.
+- **시장 증거 (참고)**: Infisical/Doppler GitHub 트래커 상의 "lightweight self-host", "single-binary", "config templating" 요청 다수 — 정량 검증은 _Assumption — needs validation via maintainer issue triage_.
 
 ## Users
 
@@ -34,22 +34,23 @@
 **"Worktree 와 multi-service 환경을 1급(first-class) 으로 다루는 가벼운 self-host 시크릿 도구"가, 개인 개발자의 `.env` × `GitHub Secret` 이중화와 환경별 수작업 동기화를 제거해서, 신규 환경변수 1건 추가에 드는 시간을 ≥ 80% 줄이고 "Local → dev → prod 누락" 사고를 0 으로 만든다.**
 
 검증 신호:
+
 - 본인의 12개 `.env` 파일 운영을 단일 도구로 대체할 수 있는가.
 - `secret run -- <cmd>` 한 줄로 worktree 별 환경이 자동 주입되는가.
 - GitHub Actions 에서 동일 source 로부터 시크릿이 주입되어 GitHub Secret 등록 단계가 사라지는가.
 
 ## Success Metrics
 
-| Metric | Target | How measured |
-|---|---|---|
-| **신규 envvar 1건 추가 → 전 환경 반영 시간** | 기존 수작업 대비 ≥ 80% 단축 (5분 → 1분 내) | 본인 운영 기록 (before/after 로그) |
-| **"Local 에는 있는데 dev/prod 에 누락" 사고 건수** | 도입 후 **0건/월** | 본인 운영 사고 로그 + CI fail 추적 |
-| **Self-host 최초 부팅까지 걸리는 시간** | `docker compose up` 후 **≤ 2분** | 클린 VM 에서 실측 |
-| **CLI cold start latency (`secret run`)** | ≤ 300ms p95 | 로컬 벤치 |
-| **GitHub Star (커뮤니티 시그널, 6개월)** | ≥ 50 | GitHub | 
-| **MAU 자기 검증** | 본인 + 외부 사용자 ≥ 5명 | self-host telemetry opt-in 또는 Discord/Issue 카운트 |
+| Metric                                             | Target                                     | How measured                                         |
+| -------------------------------------------------- | ------------------------------------------ | ---------------------------------------------------- |
+| **신규 envvar 1건 추가 → 전 환경 반영 시간**       | 기존 수작업 대비 ≥ 80% 단축 (5분 → 1분 내) | 본인 운영 기록 (before/after 로그)                   |
+| **"Local 에는 있는데 dev/prod 에 누락" 사고 건수** | 도입 후 **0건/월**                         | 본인 운영 사고 로그 + CI fail 추적                   |
+| **Self-host 최초 부팅까지 걸리는 시간**            | `docker compose up` 후 **≤ 2분**           | 클린 VM 에서 실측                                    |
+| **CLI cold start latency (`secret run`)**          | ≤ 300ms p95                                | 로컬 벤치                                            |
+| **GitHub Star (커뮤니티 시그널, 6개월)**           | ≥ 50                                       | GitHub                                               |
+| **MAU 자기 검증**                                  | 본인 + 외부 사용자 ≥ 5명                   | self-host telemetry opt-in 또는 Discord/Issue 카운트 |
 
-> ⚠ 마지막 두 항목은 PRD 단계의 *assumption-grade* 지표. 정식 측정 방법은 `/plan` 단계에서 확정.
+> ⚠ 마지막 두 항목은 PRD 단계의 _assumption-grade_ 지표. 정식 측정 방법은 `/plan` 단계에서 확정.
 
 ## Scope
 
@@ -99,15 +100,15 @@
 
 ### Out of Scope (v1 에서 명시적으로 제외)
 
-| 항목 | 이유 |
-|---|---|
-| **Multi-tenant SaaS 강주 운영** (billing, org, plan 관리) | v1 은 self-host 우선. SaaS 는 검증 후. |
-| **다국어 SDK** (Python / Go / Rust / Java …) | v1 은 Node/TS SDK 만. 검증 이후 확장. |
-| **PKI / 인증서 발급·회수** | 별개 제품 영역. |
-| **동적 시크릿** (Vault 스타일 DB credential 동적 생성) | 운영 복잡도 폭증. v1 위협 모델 밖. |
-| **E2EE (zero-knowledge client-side encryption)** | Self-host = 본인 DB 소유 → 위협 모델상 ROI 낮음. 서버측 대칭 암호화로 대체. |
-| **Docker Swarm secret 자체와의 결합** | 사용자가 `docker secret` 미사용 결정. 대신 webhook + service restart 패턴. |
-| **Secret sharing (외부인에게 일회성 URL 공유)** | 원 요청에는 있었으나 multi-service 운영 페인과 직접성이 낮아 v1 제외. v2 후보. |
+| 항목                                                      | 이유                                                                           |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Multi-tenant SaaS 강주 운영** (billing, org, plan 관리) | v1 은 self-host 우선. SaaS 는 검증 후.                                         |
+| **다국어 SDK** (Python / Go / Rust / Java …)              | v1 은 Node/TS SDK 만. 검증 이후 확장.                                          |
+| **PKI / 인증서 발급·회수**                                | 별개 제품 영역.                                                                |
+| **동적 시크릿** (Vault 스타일 DB credential 동적 생성)    | 운영 복잡도 폭증. v1 위협 모델 밖.                                             |
+| **E2EE (zero-knowledge client-side encryption)**          | Self-host = 본인 DB 소유 → 위협 모델상 ROI 낮음. 서버측 대칭 암호화로 대체.    |
+| **Docker Swarm secret 자체와의 결합**                     | 사용자가 `docker secret` 미사용 결정. 대신 webhook + service restart 패턴.     |
+| **Secret sharing (외부인에게 일회성 URL 공유)**           | 원 요청에는 있었으나 multi-service 운영 페인과 직접성이 낮아 v1 제외. v2 후보. |
 
 > **참고**: 원본 요청의 "Secret sharing" 항목은 페인 검증 우선순위에서 밀려나 v2 후보로 이동. 이의 있으면 다시 끌어올 수 있음.
 
@@ -126,16 +127,16 @@
 
 <!-- 비즈니스 outcome 중심. /plan 이 각 항목을 implementation plan 으로 분해. -->
 
-| # | Milestone | Outcome | Status | Plan |
-|---|---|---|---|---|
-| 1 | **Self-host server + CLI MVP** | 본인의 12개 `.env` 를 단일 서버 + `secret pull/run` 으로 대체. SQLite 단일 마운트. | in-progress | [.claude/plans/comax-secrets.plan.md](../plans/comax-secrets.plan.md) |
-| 2 | **Dashboard UI (Doppler 스타일)** | 웹 UI 에서 project/env/secret CRUD + 버전 diff + rollback + 환경 간 누락 detection. | in-progress | [.claude/plans/comax-secrets-dashboard.plan.md](../plans/comax-secrets-dashboard.plan.md) |
-| 3 | **GitHub Actions integration** | GitHub Secret 등록 절차 0 회. action 한 줄로 step env 주입. | pending | — |
-| 4 | **Webhooks + Secret referencing/overrides** | Secret 변경 → Docker 서비스 재시작 webhook. inline 참조와 env override 모델. | pending | — |
-| 5 | **Node/TS SDK + npm publish** | Next.js 앱에서 runtime 시크릿 fetch + cache + reload. | pending | — |
-| 6 | **Website + Docs (Next.js, Vercel)** | 랜딩 + quickstart + self-host + CLI/SDK reference + action 예제 + SEO. | pending | — |
-| 7 | **(Decision)** Infra config templating PoC | redis.conf / nginx.conf 환경별 렌더링 v1 포함 여부 결정. | pending | — |
-| 8 | **Public release (MIT)** | GitHub repo + npm 패키지 + docs site + GH Action marketplace 등록. | pending | — |
+| #   | Milestone                                   | Outcome                                                                             | Status      | Plan                                                                                            |
+| --- | ------------------------------------------- | ----------------------------------------------------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------- |
+| 1   | **Self-host server + CLI MVP**              | 본인의 12개 `.env` 를 단일 서버 + `secret pull/run` 으로 대체. SQLite 단일 마운트.  | done        | [plan](../plans/completed/comax-secrets.plan.md) · [report](../reports/comax-secrets-report.md) |
+| 2   | **Dashboard UI (Doppler 스타일)**           | 웹 UI 에서 project/env/secret CRUD + 버전 diff + rollback + 환경 간 누락 detection. | in-progress | [.claude/plans/comax-secrets-dashboard.plan.md](../plans/comax-secrets-dashboard.plan.md)       |
+| 3   | **GitHub Actions integration**              | GitHub Secret 등록 절차 0 회. action 한 줄로 step env 주입.                         | pending     | —                                                                                               |
+| 4   | **Webhooks + Secret referencing/overrides** | Secret 변경 → Docker 서비스 재시작 webhook. inline 참조와 env override 모델.        | pending     | —                                                                                               |
+| 5   | **Node/TS SDK + npm publish**               | Next.js 앱에서 runtime 시크릿 fetch + cache + reload.                               | pending     | —                                                                                               |
+| 6   | **Website + Docs (Next.js, Vercel)**        | 랜딩 + quickstart + self-host + CLI/SDK reference + action 예제 + SEO.              | pending     | —                                                                                               |
+| 7   | **(Decision)** Infra config templating PoC  | redis.conf / nginx.conf 환경별 렌더링 v1 포함 여부 결정.                            | pending     | —                                                                                               |
+| 8   | **Public release (MIT)**                    | GitHub repo + npm 패키지 + docs site + GH Action marketplace 등록.                  | pending     | —                                                                                               |
 
 ## Open Questions
 
@@ -161,16 +162,17 @@
 
 ## Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|
-| **스코프 폭주** — Dashboard + CLI + SDK + Action + Webhook + Website 동시 추진 | High | High | Milestone 1 (서버 + CLI) 까지는 본인 운영을 실제로 대체할 수 있어야 다음 단계 진행. Dashboard 는 그 뒤. |
-| **본인 1인 운영의 동기 소진** | High | High | "본인의 12개 `.env` 를 실제로 없앤다"는 단일 즉각 보상을 Milestone 1 에 잠가둠. |
-| **Self-host 보안 모델 misconfig** (마스터 키 노출 등) | Medium | High | 기본값 안전 (filesystem 권한 강제), 잘못된 권한 시 부팅 거부. docs 에 위협 모델 명문화. |
-| **시장 차별화 약함** — Infisical/Doppler 대비 USP 흐림 | Medium | Medium | "NAS 친화 + Worktree 1급 + GitHub Actions 통합 + Config templating" 이라는 4축으로 명시 포지셔닝. |
-| **Infra config templating 포함 시 v1 범위 폭증** | Medium | Medium | PoC → 별도 결정. v1 미포함 시 v2 우선순위 1순위 예약. |
-| **MIT 라이센스 하 SaaS 복제 위험** | Low | Medium | v1 운영 검증 후 Enterprise 모듈을 별도 라이선스로 분리하는 dual-license 옵션 유지. |
-| **SQLite 동시성 / 성능 한계** | Low | Medium | v1 사용처(개인/소규모)는 충분. 향후 backend 추상화로 Postgres 옵션 추가 여지 둠. |
+| Risk                                                                           | Likelihood | Impact | Mitigation                                                                                              |
+| ------------------------------------------------------------------------------ | ---------- | ------ | ------------------------------------------------------------------------------------------------------- |
+| **스코프 폭주** — Dashboard + CLI + SDK + Action + Webhook + Website 동시 추진 | High       | High   | Milestone 1 (서버 + CLI) 까지는 본인 운영을 실제로 대체할 수 있어야 다음 단계 진행. Dashboard 는 그 뒤. |
+| **본인 1인 운영의 동기 소진**                                                  | High       | High   | "본인의 12개 `.env` 를 실제로 없앤다"는 단일 즉각 보상을 Milestone 1 에 잠가둠.                         |
+| **Self-host 보안 모델 misconfig** (마스터 키 노출 등)                          | Medium     | High   | 기본값 안전 (filesystem 권한 강제), 잘못된 권한 시 부팅 거부. docs 에 위협 모델 명문화.                 |
+| **시장 차별화 약함** — Infisical/Doppler 대비 USP 흐림                         | Medium     | Medium | "NAS 친화 + Worktree 1급 + GitHub Actions 통합 + Config templating" 이라는 4축으로 명시 포지셔닝.       |
+| **Infra config templating 포함 시 v1 범위 폭증**                               | Medium     | Medium | PoC → 별도 결정. v1 미포함 시 v2 우선순위 1순위 예약.                                                   |
+| **MIT 라이센스 하 SaaS 복제 위험**                                             | Low        | Medium | v1 운영 검증 후 Enterprise 모듈을 별도 라이선스로 분리하는 dual-license 옵션 유지.                      |
+| **SQLite 동시성 / 성능 한계**                                                  | Low        | Medium | v1 사용처(개인/소규모)는 충분. 향후 backend 추상화로 Postgres 옵션 추가 여지 둠.                        |
 
 ---
-*Status: DRAFT — requirements only. Implementation planning pending via `/plan`.*
-*Generated by `/ecc:plan-prd` on 2026-05-30.*
+
+_Status: DRAFT — requirements only. Implementation planning pending via `/plan`._
+_Generated by `/ecc:plan-prd` on 2026-05-30._
