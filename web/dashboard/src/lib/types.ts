@@ -50,3 +50,36 @@ export interface SecretVersionDetail {
   actor_token_id?: number;
   created_at: string;
 }
+
+export interface EnvDiffChanged {
+  key: string;
+  lhs_version: number;
+  rhs_version: number;
+}
+
+export interface EnvDiff {
+  lhs: string;
+  rhs: string;
+  added: string[];
+  removed: string[];
+  changed: EnvDiffChanged[];
+}
+
+export interface AuditEntry {
+  id: number;
+  action: string;
+  target: string;
+  metadata?: string;
+  actor_token_id?: number;
+  created_at: string;
+}
+
+export interface AuditMeta {
+  next_before?: number;
+  limit: number;
+}
+
+export interface AuditPage {
+  entries: AuditEntry[];
+  meta: AuditMeta;
+}

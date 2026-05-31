@@ -94,6 +94,13 @@ export function AppShell({ crumbs, actions, children }: AppShellProps) {
             ) : null}
           </Flex>
           <Flex align="center" gap="3">
+            <Link
+              to="/audit"
+              style={{ color: 'var(--accent-11)', textDecoration: 'none' }}
+              aria-label="감사 로그 보기"
+            >
+              감사 로그
+            </Link>
             {actions}
             <Button
               variant="soft"
