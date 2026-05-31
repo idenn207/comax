@@ -14,8 +14,8 @@ export function LoginPage() {
           <Flex direction="column" gap="2">
             <Text weight="medium">Task 6에서 구현</Text>
             <Text color="gray" size="2">
-              서비스 토큰을 붙여넣으면 dashboard 세션 쿠키 + CSRF 토큰을 발급받고
-              홈으로 리다이렉트합니다.
+              서비스 토큰을 붙여넣으면 dashboard 세션 쿠키 + CSRF 토큰을 발급받고 홈으로
+              리다이렉트합니다.
             </Text>
           </Flex>
         </Card>

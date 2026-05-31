@@ -17,8 +17,8 @@ export function HomePage() {
           <Flex direction="column" gap="2">
             <Text weight="medium">Foundation 상태</Text>
             <Text color="gray" size="2">
-              SPA shell가 secret-server에서 정상적으로 서빙됩니다. CSP nonce도 같은 응답에
-              포함되어 있습니다.
+              SPA shell가 secret-server에서 정상적으로 서빙됩니다. CSP nonce도 같은 응답에 포함되어
+              있습니다.
             </Text>
           </Flex>
         </Card>
