@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"html/template"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -127,8 +128,13 @@ func (s *Server) serveSPAIndex(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "not_found", "no such route", s.logger)
 		return
 	}
+	// Treat nonce as untrusted at the type level so the gosec G705
+	// taint analyzer sees a recognized sanitizer between the context
+	// source and the io.WriteString sink. The nonce is server-generated
+	// via crypto/rand in cspMiddleware, so HTMLEscapeString is a no-op
+	// on the actual payload — this only documents the invariant.
 	nonce, _ := r.Context().Value(nonceCtxKey{}).(string)
-	body := strings.ReplaceAll(string(data), cspNoncePlaceholder, nonce)
+	body := strings.ReplaceAll(string(data), cspNoncePlaceholder, template.HTMLEscapeString(nonce))
 
 	w.Header().Set("Cache-Control", cacheNoStore)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
