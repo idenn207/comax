@@ -10,28 +10,15 @@ import { diffLines } from '../lib/diff';
  *
  * We render as a single <table role="table"> so screen readers narrate
  * "row 3, removed: X" coherently. The visual style uses semantic colors
- * from tokens.css (--color-danger / --color-success) rather than raw
- * hex, so dark/light themes both stay legible.
+ * from tokens.css (--color-danger-soft / --color-success-soft for row
+ * backgrounds, --color-danger / --color-success for foreground text)
+ * rather than raw Radix --red-a3 etc., so light and dark themes stay
+ * perceptually flat.
  *
  * Accessibility: added/removed status is conveyed by both color AND a
  * visually-hidden Korean label per row, so color-blind users and screen
  * reader users get the same signal as sighted users (WCAG 1.4.1).
  */
-
-// Inline SR-only style. The project does not yet ship a global
-// .visually-hidden utility (see EnvSecrets table-header note) so we
-// keep this scoped here until a shared token lands.
-const SR_ONLY: React.CSSProperties = {
-  position: 'absolute',
-  width: 1,
-  height: 1,
-  padding: 0,
-  margin: -1,
-  overflow: 'hidden',
-  clip: 'rect(0, 0, 0, 0)',
-  whiteSpace: 'nowrap',
-  border: 0,
-};
 
 interface DiffViewerProps {
   leftLabel: string;
@@ -66,8 +53,8 @@ export function DiffViewer({ leftLabel, rightLabel, left, right }: DiffViewerPro
         role="table"
         aria-label={`${leftLabel} 대비 ${rightLabel} 차이`}
         style={{
-          border: '1px solid var(--gray-a5)',
-          borderRadius: 'var(--radius-2)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-md)',
           overflow: 'hidden',
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
           fontSize: '0.85rem',
@@ -99,7 +86,7 @@ function DiffRow({ op }: DiffRowProps) {
         style={{
           display: 'grid',
           gridTemplateColumns: 'min-content 1fr min-content 1fr',
-          borderTop: '1px solid var(--gray-a4)',
+          borderTop: '1px solid var(--color-border)',
         }}
       >
         <Gutter line={op.leftLine} />
@@ -116,13 +103,13 @@ function DiffRow({ op }: DiffRowProps) {
         style={{
           display: 'grid',
           gridTemplateColumns: 'min-content 1fr min-content 1fr',
-          borderTop: '1px solid var(--gray-a4)',
-          background: 'var(--red-a3)',
+          borderTop: '1px solid var(--color-border)',
+          background: 'var(--color-danger-soft)',
         }}
       >
-        <span style={SR_ONLY}>제거된 줄: </span>
+        <span className="visually-hidden">제거된 줄: </span>
         <Gutter line={op.leftLine} />
-        <Cell prefix="−" text={op.left} color="var(--red-11)" />
+        <Cell prefix="−" text={op.left} color="var(--color-danger)" />
         <Gutter />
         <Cell text="" />
       </Box>
@@ -134,15 +121,15 @@ function DiffRow({ op }: DiffRowProps) {
       style={{
         display: 'grid',
         gridTemplateColumns: 'min-content 1fr min-content 1fr',
-        borderTop: '1px solid var(--gray-a4)',
-        background: 'var(--green-a3)',
+        borderTop: '1px solid var(--color-border)',
+        background: 'var(--color-success-soft)',
       }}
     >
-      <span style={SR_ONLY}>추가된 줄: </span>
+      <span className="visually-hidden">추가된 줄: </span>
       <Gutter />
       <Cell text="" />
       <Gutter line={op.rightLine} />
-      <Cell prefix="+" text={op.right} color="var(--green-11)" />
+      <Cell prefix="+" text={op.right} color="var(--color-success)" />
     </Box>
   );
 }
@@ -155,8 +142,8 @@ function Gutter({ line }: { line?: number }) {
         minWidth: '2.5rem',
         padding: '2px 8px',
         textAlign: 'right',
-        color: 'var(--gray-9)',
-        background: 'var(--gray-a2)',
+        color: 'var(--color-muted)',
+        background: 'var(--color-surface-hover)',
         userSelect: 'none',
       }}
     >

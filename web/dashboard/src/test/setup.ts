@@ -35,10 +35,34 @@ if (typeof globalThis.PointerEvent === 'undefined') {
   } as unknown as typeof PointerEvent;
 }
 
+// jsdom doesn't ship matchMedia. The theme hook reads
+// `(prefers-color-scheme: dark)` to decide the system appearance, and
+// any component tree that mounts ThemeRoot needs a working stub. We
+// default to "not dark" so tests start in a deterministic light
+// appearance; individual tests can override via vi.spyOn if they need
+// to assert system→OS coupling.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+  Object.defineProperty(window, 'matchMedia', {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
 // jsdom keeps state across tests inside the same file unless we tell it
 // to wipe between cases. Without this, sessionStorage from test 1
 // leaks into test 2 and the auth tests fail in mysterious ways.
 afterEach(() => {
   cleanup();
   sessionStorage.clear();
+  localStorage.clear();
 });

@@ -51,49 +51,56 @@ export function LoginPage() {
 
   return (
     <Container size="2" py="9">
-      <Flex direction="column" gap="4">
-        <Heading size="6">로그인</Heading>
-        <Card variant="surface">
-          <form onSubmit={onSubmit} aria-describedby="login-help">
-            <Flex direction="column" gap="3">
-              <Box>
-                <Text as="label" size="2" weight="medium" htmlFor="token">
-                  서비스 토큰
-                </Text>
-                <Text id="login-help" as="p" size="2" color="gray" mt="1">
-                  CLI에서 발급받은 토큰을 그대로 붙여넣으면 dashboard 세션 쿠키 + CSRF 토큰을
-                  발급받고 홈으로 이동합니다.
-                </Text>
-              </Box>
-              <TextArea
-                id="token"
-                name="token"
-                placeholder="comax_..."
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                rows={3}
-                spellCheck={false}
-                autoCapitalize="off"
-                autoCorrect="off"
-                required
-                disabled={pending}
-                aria-invalid={error !== null}
-                aria-errormessage={error ? 'login-error' : undefined}
-              />
-              {error ? (
-                <Callout.Root color="red" role="alert" id="login-error">
-                  <Callout.Text>{error}</Callout.Text>
-                </Callout.Root>
-              ) : null}
-              <Flex justify="end">
-                <Button type="submit" disabled={pending || token.trim() === ''}>
-                  {pending ? '로그인 중…' : '로그인'}
-                </Button>
+      {/* Login is its own route without a global skip-link target, so the
+          <main> stays unkeyed — assigning `id="main"` here would advertise
+          a skip target that nothing actually links to. */}
+      <main>
+        <Flex direction="column" gap="4">
+          <Heading size="6" as="h1">
+            로그인
+          </Heading>
+          <Card variant="surface">
+            <form onSubmit={onSubmit} aria-describedby="login-help">
+              <Flex direction="column" gap="3">
+                <Box>
+                  <Text as="label" size="2" weight="medium" htmlFor="token">
+                    서비스 토큰
+                  </Text>
+                  <Text id="login-help" as="p" size="2" color="gray" mt="1">
+                    CLI에서 발급받은 토큰을 그대로 붙여넣으면 dashboard 세션 쿠키 + CSRF 토큰을
+                    발급받고 홈으로 이동합니다.
+                  </Text>
+                </Box>
+                <TextArea
+                  id="token"
+                  name="token"
+                  placeholder="comax_..."
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  rows={3}
+                  spellCheck={false}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  required
+                  disabled={pending}
+                  aria-invalid={error !== null}
+                  aria-errormessage={error ? 'login-error' : undefined}
+                />
+                {error ? (
+                  <Callout.Root color="red" role="alert" id="login-error">
+                    <Callout.Text>{error}</Callout.Text>
+                  </Callout.Root>
+                ) : null}
+                <Flex justify="end">
+                  <Button type="submit" disabled={pending || token.trim() === ''}>
+                    {pending ? '로그인 중…' : '로그인'}
+                  </Button>
+                </Flex>
               </Flex>
-            </Flex>
-          </form>
-        </Card>
-      </Flex>
+            </form>
+          </Card>
+        </Flex>
+      </main>
     </Container>
   );
 }
@@ -102,6 +109,7 @@ function formatLoginError(err: ApiError): string {
   switch (err.code) {
     case 'unknown_token':
     case 'missing_bearer':
+    case 'unauthorized':
       return 'Invalid token. Please check and try again.';
     case 'bad_request':
       return err.message;

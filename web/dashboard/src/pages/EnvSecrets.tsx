@@ -118,7 +118,10 @@ export function EnvSecretsPage({ projectName, envName }: EnvSecretsPageProps) {
       }
     >
       <Box>
-        <Heading size="6" mb="1">
+        {/* Page-level h1. Radix Heading defaults to <h1>, but we name it
+            explicitly so a future swap to a different size never silently
+            drops the landmark heading. */}
+        <Heading as="h1" size="6" mb="1">
           {envName}
         </Heading>
         <Text color="gray" size="2">
@@ -160,7 +163,9 @@ export function EnvSecretsPage({ projectName, envName }: EnvSecretsPageProps) {
       {secrets && secrets.length === 0 ? (
         <Card variant="surface">
           <Flex direction="column" gap="2" p="4" align="start">
-            <Heading size="3">시크릿이 없습니다</Heading>
+            <Heading as="h2" size="3">
+              시크릿이 없습니다
+            </Heading>
             <Text color="gray" size="2">
               새 시크릿을 추가하거나, 다른 환경에서 상속받도록 설정하세요.
             </Text>
@@ -217,7 +222,6 @@ export function EnvSecretsPage({ projectName, envName }: EnvSecretsPageProps) {
                 <Table.ColumnHeaderCell>값</Table.ColumnHeaderCell>
                 <Table.ColumnHeaderCell>마지막 변경</Table.ColumnHeaderCell>
                 <Table.ColumnHeaderCell width="280px">
-                  <Text style={{ visibility: 'hidden' }}>작업</Text>
                   <span className="visually-hidden">작업</span>
                 </Table.ColumnHeaderCell>
               </Table.Row>

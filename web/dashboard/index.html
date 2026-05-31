@@ -5,6 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark light" />
     <title>Comax Secrets</title>
+    <!--
+      Pre-mount theme sync. React's useEffect fires after the first paint,
+      so a user who saved "dark" otherwise sees a light flash before the
+      hydration finishes. Reading localStorage + matchMedia here, before
+      React mounts, lets us set data-theme + color-scheme on the root
+      element so tokens.css picks the right palette on the very first
+      frame. Wrapped in try/catch because private-browsing localStorage
+      can throw, and we want to fail open to dark (the default) rather
+      than blank the page. Uses the same __CSP_NONCE__ placeholder the
+      Go SPA handler substitutes per request.
+    -->
+    <script nonce="__CSP_NONCE__">
+      (function () {
+        try {
+          var stored = localStorage.getItem('comax.theme-pref');
+          var prefersDark = matchMedia('(prefers-color-scheme: dark)').matches;
+          var applied =
+            stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', applied);
+          document.documentElement.style.colorScheme = applied;
+        } catch (_) {
+          /* localStorage disabled — fall through to the static data-theme="dark". */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

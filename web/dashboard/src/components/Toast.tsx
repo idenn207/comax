@@ -97,6 +97,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               key={toast.id}
               color={toast.kind === 'success' ? 'green' : 'red'}
               role={toast.kind === 'error' ? 'alert' : 'status'}
+              highContrast
             >
               <Callout.Text>{toast.message}</Callout.Text>
             </Callout.Root>

@@ -5,12 +5,12 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider } from '@tanstack/react-router';
-import { Theme } from '@radix-ui/themes';
 
 import { registerUnauthorizedHandler } from './lib/api';
 import { forceLogout } from './lib/auth';
 import { router } from './router';
 import { ToastProvider } from './components/Toast';
+import { ThemeRoot } from './components/ThemeRoot';
 
 /**
  * QueryClient lives at the app root so caches survive route changes.
@@ -52,12 +52,12 @@ if (!rootEl) {
 
 createRoot(rootEl).render(
   <StrictMode>
-    <Theme appearance="dark" accentColor="indigo" grayColor="slate" radius="medium">
+    <ThemeRoot>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
           <RouterProvider router={router} />
         </ToastProvider>
       </QueryClientProvider>
-    </Theme>
+    </ThemeRoot>
   </StrictMode>,
 );
