@@ -47,3 +47,17 @@ deploy/compose/keys/
 .env
 .env.*
 !.env.example
+
+# Dashboard SPA build output. Committed only via .gitkeep so the
+# `//go:embed all:dist` directive resolves to at least one entry even
+# before `make dashboard` has produced a real bundle.
+/internal/server/dashboard/dist/*
+!/internal/server/dashboard/dist/.gitkeep
+
+# Frontend toolchain artefacts (pnpm/Vite/Playwright).
+/web/dashboard/node_modules/
+/web/dashboard/dist/
+/web/dashboard/.vite/
+/web/dashboard/playwright-report/
+/web/dashboard/test-results/
+/web/dashboard/coverage/

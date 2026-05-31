@@ -41,10 +41,13 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("GET /api/v1/audit", s.handleListAudit)
 
-	// 404 for everything else, in our envelope shape.
-	mux.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) {
-		writeError(w, http.StatusNotFound, "not_found", "no such route", s.logger)
-	})
+	// SPA fallthrough. Go's ServeMux (1.22+) chooses the more specific
+	// pattern, so explicit /api/* and /healthz patterns above still win.
+	// cspMiddleware wraps only this handler — /api responses are JSON,
+	// never executed in a browsing context, and don't need the CSP
+	// nonce. handleSPA returns the envelope-shape 404 when the dashboard
+	// is not embedded so unknown paths still look like every other 404.
+	mux.Handle("/", s.cspMiddleware(http.HandlerFunc(s.handleSPA)))
 
 	return s.recoverMiddleware(s.logMiddleware(s.authMiddleware(mux)))
 }
