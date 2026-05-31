@@ -12,8 +12,12 @@
  * components, where intent (success toast vs. silent refresh) lives.
  */
 
-import { apiFetch } from './api';
+import { apiFetch, apiFetchEnvelope } from './api';
 import type {
+  AuditEntry,
+  AuditMeta,
+  AuditPage,
+  EnvDiff,
   Environment,
   Project,
   ResolvedSecret,
@@ -23,6 +27,15 @@ import type {
 
 const encode = encodeURIComponent;
 
+export interface AuditFilter {
+  project?: string;
+  env?: string;
+  actor?: number;
+  action?: string;
+  before?: number;
+  limit?: number;
+}
+
 export const queryKeys = {
   projects: () => ['projects'] as const,
   envs: (project: string) => ['projects', project, 'envs'] as const,
@@ -31,6 +44,18 @@ export const queryKeys = {
     ['projects', project, 'envs', env, 'versions'] as const,
   versionDetail: (project: string, env: string, key: string, version: number) =>
     ['projects', project, 'envs', env, 'secrets', key, 'versions', version] as const,
+  envDiff: (project: string, env: string, against: string) =>
+    ['projects', project, 'envs', env, 'diff', against] as const,
+  audit: (filter: AuditFilter) =>
+    [
+      'audit',
+      filter.project ?? '',
+      filter.env ?? '',
+      filter.actor ?? 0,
+      filter.action ?? '',
+      filter.before ?? 0,
+      filter.limit ?? 0,
+    ] as const,
 } as const;
 
 export async function listProjects(signal?: AbortSignal): Promise<Project[]> {
@@ -123,4 +148,35 @@ export async function rollbackSecret(
     `/api/v1/projects/${encode(project)}/envs/${encode(env)}/secrets/${encode(key)}/rollback`,
     { method: 'POST', body: { target_version: targetVersion } },
   );
+}
+
+export async function diffEnvs(
+  project: string,
+  env: string,
+  against: string,
+  signal?: AbortSignal,
+): Promise<EnvDiff> {
+  return apiFetch<EnvDiff>(
+    `/api/v1/projects/${encode(project)}/envs/${encode(env)}/diff?against=${encode(against)}`,
+    { signal },
+  );
+}
+
+export async function listAudit(filter: AuditFilter, signal?: AbortSignal): Promise<AuditPage> {
+  const params = new URLSearchParams();
+  if (filter.project) params.set('project', filter.project);
+  if (filter.env) params.set('env', filter.env);
+  if (filter.actor && filter.actor > 0) params.set('actor', String(filter.actor));
+  if (filter.action) params.set('action', filter.action);
+  if (filter.before && filter.before > 0) params.set('before', String(filter.before));
+  if (filter.limit && filter.limit > 0) params.set('limit', String(filter.limit));
+  const qs = params.toString();
+  const response = await apiFetchEnvelope<AuditEntry[], AuditMeta>(
+    `/api/v1/audit${qs ? `?${qs}` : ''}`,
+    { signal },
+  );
+  return {
+    entries: response.data ?? [],
+    meta: response.meta ?? { limit: filter.limit ?? 50 },
+  };
 }

@@ -91,6 +91,19 @@ export async function apiFetch<T = unknown>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
+  const env = await apiFetchEnvelope<T>(path, options);
+  return env.data as T;
+}
+
+/**
+ * Same wire contract as apiFetch but surfaces the full envelope
+ * (data + meta). Pagination cursors live on `meta`, so list endpoints
+ * with `before=`-style paging (audit feed) reach for this variant.
+ */
+export async function apiFetchEnvelope<T = unknown, M = unknown>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<{ data: T | undefined; meta?: M }> {
   const method = (options.method ?? 'GET').toUpperCase();
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -129,7 +142,7 @@ export async function apiFetch<T = unknown>(
   // /dashboard/session logout endpoint relies on this — without the
   // early-return, we'd fall through to envelope parsing and throw.
   if (response.ok && text.length === 0) {
-    return undefined as T;
+    return { data: undefined };
   }
 
   let envelope: Envelope<T> | null = null;
@@ -163,5 +176,5 @@ export async function apiFetch<T = unknown>(
     throw new ApiError(response.status, code, message);
   }
 
-  return envelope.data as T;
+  return { data: envelope.data, meta: envelope.meta as M | undefined };
 }

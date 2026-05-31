@@ -92,6 +92,16 @@ export function EnvSecretsPage({ projectName, envName }: EnvSecretsPageProps) {
       ]}
       actions={
         <Flex gap="2">
+          <Button variant="soft" color="gray" asChild>
+            <Link
+              to="/projects/$project/envs/$env/diff"
+              params={{ project: projectName, env: envName }}
+              search={{}}
+              aria-label="다른 환경과 비교"
+            >
+              환경 비교
+            </Link>
+          </Button>
           <Button
             variant="soft"
             color="gray"
