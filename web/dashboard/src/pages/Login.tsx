@@ -42,7 +42,7 @@ export function LoginPage() {
       if (err instanceof ApiError) {
         setError(formatLoginError(err));
       } else {
-        setError('알 수 없는 오류가 발생했습니다. 잠시 후 다시 시도하세요.');
+        setError('Unexpected error. Please try again later.');
       }
     } finally {
       setPending(false);
@@ -102,12 +102,12 @@ function formatLoginError(err: ApiError): string {
   switch (err.code) {
     case 'unknown_token':
     case 'missing_bearer':
-      return '토큰이 올바르지 않습니다. 다시 확인하세요.';
+      return 'Invalid token. Please check and try again.';
     case 'bad_request':
       return err.message;
     case 'network':
-      return '서버에 연결할 수 없습니다. 네트워크와 secret-server 상태를 확인하세요.';
+      return 'Cannot reach the server. Check the network and secret-server status.';
     default:
-      return err.message || '로그인에 실패했습니다.';
+      return err.message || 'Login failed.';
   }
 }

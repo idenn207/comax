@@ -3,23 +3,16 @@ import { expect, test } from '@playwright/test';
 /**
  * End-to-end auth flow against a live secret-server.
  *
- * Prerequisites:
- *   - secret-server running at PLAYWRIGHT_BASE_URL (default http://localhost:8080)
- *   - DASHBOARD_TOKEN env var set to a valid service token. Generate one via
- *     POST /api/v1/bootstrap on a fresh DB, or `secret token issue` on an
- *     existing one. See docs/quickstart.md.
- *
- * Skip-with-reason when the token isn't present so the suite stays green in
- * environments that don't run the integration server. CI Task 13/14 will
- * provide both.
+ * `playwright.config.ts` launches the binary (webServer) into a fresh
+ * tmp DB and `tests/e2e/global-setup.ts` calls POST /bootstrap to obtain
+ * the admin token, which is injected here via DASHBOARD_TOKEN.
  */
 
-const token = process.env.DASHBOARD_TOKEN;
-
 test.describe('dashboard auth', () => {
-  test.skip(!token, 'DASHBOARD_TOKEN not set — see tests/e2e/auth.spec.ts header');
-
   test('login → refresh stays authed → logout → refresh redirects to /login', async ({ page }) => {
+    const token = process.env.DASHBOARD_TOKEN;
+    if (!token) throw new Error('DASHBOARD_TOKEN missing — global-setup did not run');
+
     await page.goto('/login');
 
     // ── Login ─────────────────────────────────────────────────────────
@@ -47,7 +40,7 @@ test.describe('dashboard auth', () => {
     await page.goto('/login');
     await page.getByLabel('서비스 토큰').fill('definitely-not-a-real-token');
     await page.getByRole('button', { name: '로그인' }).click();
-    await expect(page.getByRole('alert')).toContainText('토큰이 올바르지 않습니다');
+    await expect(page.getByRole('alert')).toContainText('Invalid token');
     await expect(page).toHaveURL(/\/login$/);
   });
 

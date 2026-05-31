@@ -3,19 +3,14 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * Playwright config for the dashboard e2e suite.
  *
- * The default `testDir` is `tests/e2e/` so Vitest (which scans
- * src/**) and Playwright don't fight over the same files. Browsers
- * must be installed once before the first run:
+ * `global-setup.ts` spawns the pre-built `secret-server` binary into a
+ * fresh per-run tmp dir and captures the auto-bootstrap admin token from
+ * stdout. The token lands in `process.env.DASHBOARD_TOKEN` so the auth
+ * spec can read it. `global-teardown.ts` kills the server.
  *
- *   pnpm exec playwright install --with-deps chromium
- *
- * Server orchestration:
- *   `webServer` is intentionally NOT set. The auth e2e needs a fresh
- *   secret-server with a known service token, which is easier to
- *   manage from the make target / CI workflow (Task 13/14) than from
- *   the Playwright config — the config would need to bootstrap the
- *   server, issue a token, and feed it into the test. We surface that
- *   via PLAYWRIGHT_BASE_URL / DASHBOARD_TOKEN env vars instead.
+ * Prerequisite: `make build` (or equivalent) must have produced
+ * `bin/secret-server` at the worktree root.
+ * One-time browser install: `pnpm exec playwright install chromium`.
  */
 export default defineConfig({
   testDir: './tests/e2e',
@@ -25,11 +20,11 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:8080',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:9090',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
-  projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-  ],
+  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  globalSetup: './tests/e2e/global-setup.ts',
+  globalTeardown: './tests/e2e/global-teardown.ts',
 });

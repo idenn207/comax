@@ -70,7 +70,7 @@ export function subscribeAuth(listener: AuthListener): () => void {
 export async function login(token: string): Promise<void> {
   const trimmed = token.trim();
   if (trimmed === '') {
-    throw new ApiError(0, 'bad_request', '서비스 토큰을 입력하세요.');
+    throw new ApiError(0, 'bad_request', 'Service token is required.');
   }
   const data = await apiFetch<SessionCreateResponse>('/api/v1/dashboard/session', {
     method: 'POST',

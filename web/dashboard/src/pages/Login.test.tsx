@@ -79,7 +79,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: /로그인/ }));
 
     expect(
-      await screen.findByText(/토큰이 올바르지 않습니다/),
+      await screen.findByText(/Invalid token/),
     ).toBeInTheDocument();
     expect(navigateMock).not.toHaveBeenCalled();
   });
@@ -93,7 +93,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: /로그인/ }));
 
     expect(
-      await screen.findByText(/서버에 연결할 수 없습니다/),
+      await screen.findByText(/Cannot reach the server/),
     ).toBeInTheDocument();
   });
 });

@@ -28,7 +28,7 @@ export function HomePage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError('로그아웃 중 오류가 발생했습니다.');
+        setError('Logout failed.');
       }
     } finally {
       setBusy(false);

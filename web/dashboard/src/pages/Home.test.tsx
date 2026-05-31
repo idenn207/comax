@@ -60,6 +60,6 @@ describe('HomePage', () => {
 
     await waitFor(() => expect(navigateMock).toHaveBeenCalledWith({ to: '/login', replace: true }));
     // The error is surfaced to the operator but the redirect still fires.
-    expect(await screen.findByRole('alert')).toHaveTextContent(/refused|로그아웃/);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/refused|Logout/);
   });
 });
