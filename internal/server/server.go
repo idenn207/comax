@@ -3,6 +3,7 @@ package server
 import (
 	"database/sql"
 	"io"
+	"io/fs"
 	"log/slog"
 
 	"github.com/idenn207/comax-secrets/internal/crypto"
@@ -23,11 +24,19 @@ import (
 //     wires noopResolver; Task 6 replaces it.
 //   - Logger is slog so structured JSON propagates through middleware,
 //     handlers, and downstream layers consistently.
+//   - SPAFS is the embedded dashboard filesystem. nil means dev mode
+//     (no SPA built) or the operator passed --dashboard-enabled=false;
+//     the router still wires every /api route but the SPA fallthrough
+//     returns the envelope-shape 404. Callers obtain the FS from the
+//     internal/server/dashboard subpackage so this package does not
+//     pull in the //go:embed directive (which would force every build
+//     to populate dist/).
 type Server struct {
 	db       *sql.DB
 	keys     crypto.KeyProvider
 	resolver Resolver
 	logger   *slog.Logger
+	spaFS    fs.FS
 }
 
 // Options configures NewServer. All fields are optional except DB and
@@ -37,6 +46,10 @@ type Options struct {
 	Keys     crypto.KeyProvider
 	Resolver Resolver
 	Logger   *slog.Logger
+	// SPAFS, when non-nil, supplies the embedded dashboard. Pass
+	// dashboard.FS() from cmd/server when --dashboard-enabled is true and
+	// the binary was built with -tags embed_dashboard.
+	SPAFS fs.FS
 }
 
 // NewServer wires the dependencies. It does not start a network
@@ -59,5 +72,6 @@ func NewServer(opts Options) *Server {
 		keys:     opts.Keys,
 		resolver: opts.Resolver,
 		logger:   opts.Logger,
+		spaFS:    opts.SPAFS,
 	}
 }

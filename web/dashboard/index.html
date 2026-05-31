@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark light" />
+    <title>Comax Secrets</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!--
+      The nonce attribute is the literal placeholder the Go SPA handler
+      substitutes for the per-request CSP nonce (see handlers_spa.go).
+      Without the swap the browser refuses to execute the bundle, which
+      is the fail-closed behavior we want if CSP middleware is misrouted.
+    -->
+    <script type="module" nonce="__CSP_NONCE__" src="/src/main.tsx"></script>
+  </body>
+</html>

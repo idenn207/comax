@@ -1,10 +1,14 @@
 package server
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"log/slog"
 	"net/http"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/idenn207/comax-secrets/internal/auth"
@@ -192,15 +196,98 @@ func isMutating(method string) bool {
 }
 
 // isPublicPath returns true for endpoints that must work without a
-// bearer token. /healthz is a docker-compose healthcheck; /bootstrap is
-// the one-time admin token issuance flow (it gates itself on "no
-// tokens exist yet" instead of on a bearer); POST /dashboard/session
-// receives the bearer in the body, not the header, so it cannot be
-// gated by authMiddleware without breaking the dashboard login flow.
+// bearer token.
+//
+// Two arms:
+//
+//  1. Any path outside the /api/ tree is public. This covers the SPA
+//     shell (/, /login, /assets/...) and /healthz — none of which can
+//     require auth without breaking the login flow itself or the
+//     compose healthcheck.
+//
+//  2. Inside /api/, only the bootstrap and session-create endpoints
+//     are public. Bootstrap gates itself on "no tokens exist yet";
+//     POST /dashboard/session receives the bearer in the body, not
+//     the header, so it cannot pass through authMiddleware without
+//     breaking the dashboard login flow.
+//
+// Note: SPA paths are intentionally public; the /api endpoints they
+// invoke from JS are not. The SPA holds nothing sensitive until the
+// dashboard cookie is set.
 func isPublicPath(path string) bool {
+	if !strings.HasPrefix(path, "/api/") {
+		return true
+	}
 	switch path {
-	case "/healthz", "/api/v1/bootstrap", "/api/v1/dashboard/session":
+	case "/api/v1/bootstrap", "/api/v1/dashboard/session":
 		return true
 	}
 	return false
+}
+
+// nonceCtxKey is the typed key cspMiddleware uses to stamp the per-
+// request CSP nonce onto the context. handlers_spa.go reads it to
+// substitute the placeholder in index.html.
+type nonceCtxKey struct{}
+
+// cspMiddleware generates a per-request nonce, sets the
+// Content-Security-Policy header, and stamps the nonce onto the request
+// context. It is intentionally narrow in scope: the router wraps it
+// only around the SPA handler (the /api/* JSON responses do not need
+// CSP because they are not HTML and never execute scripts in a
+// browsing context).
+//
+// Failing nonce generation is treated as fatal for the request: the
+// browser would otherwise execute scripts the dashboard did not stamp.
+func (s *Server) cspMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		nonce, err := generateCSPNonce()
+		if err != nil {
+			s.logger.Error("csp nonce", slog.String("err", err.Error()))
+			writeError(w, http.StatusInternalServerError, "internal", "csp nonce", s.logger)
+			return
+		}
+		w.Header().Set("Content-Security-Policy", buildCSP(nonce))
+		ctx := context.WithValue(r.Context(), nonceCtxKey{}, nonce)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// generateCSPNonce returns a 128-bit base64 nonce. base64.RawStdEncoding
+// avoids the trailing "=" padding so the nonce is safe to drop into an
+// HTML attribute without escaping.
+func generateCSPNonce() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawStdEncoding.EncodeToString(b), nil
+}
+
+// buildCSP renders the full CSP header value for an SPA response.
+//
+// Allowances:
+//
+//   - script-src: 'self' + per-request nonce. Vite emits module scripts
+//     from /assets/ which 'self' covers; the nonce lets the SPA shell
+//     bootstrap from index.html without resorting to 'unsafe-inline'.
+//   - style-src: 'self' 'unsafe-inline' — Radix and many CSS-in-JS
+//     libraries inject inline style attributes. v1 trades strict style
+//     CSP for ergonomic component libraries; style-based exfiltration
+//     attacks are orders of magnitude weaker than script-based ones.
+//   - img-src includes data: so SVG/PNG data URLs in the SPA work.
+//   - connect-src 'self' restricts fetch/XHR back to this origin
+//     (the dashboard never talks to a 3rd-party API).
+//   - frame-src 'none' + object-src 'none' + base-uri 'self' close
+//     common XSS escape hatches.
+func buildCSP(nonce string) string {
+	return "default-src 'self'; " +
+		"script-src 'self' 'nonce-" + nonce + "'; " +
+		"style-src 'self' 'unsafe-inline'; " +
+		"img-src 'self' data:; " +
+		"font-src 'self'; " +
+		"connect-src 'self'; " +
+		"frame-src 'none'; " +
+		"object-src 'none'; " +
+		"base-uri 'self'"
 }

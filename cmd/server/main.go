@@ -27,6 +27,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -38,6 +39,7 @@ import (
 	"github.com/idenn207/comax-secrets/internal/auth"
 	"github.com/idenn207/comax-secrets/internal/crypto"
 	"github.com/idenn207/comax-secrets/internal/server"
+	"github.com/idenn207/comax-secrets/internal/server/dashboard"
 	"github.com/idenn207/comax-secrets/internal/store"
 	"github.com/idenn207/comax-secrets/internal/version"
 )
@@ -45,13 +47,14 @@ import (
 // config is the resolved runtime configuration. Each field has a flag
 // and an env fallback; flags win when both are set.
 type config struct {
-	listenAddr    string
-	dbPath        string
-	masterKeyPath string
-	autoGenKey    bool
-	printVersion  bool
-	healthCheck   bool
-	healthURL     string
+	listenAddr       string
+	dbPath           string
+	masterKeyPath    string
+	autoGenKey       bool
+	dashboardEnabled bool
+	printVersion     bool
+	healthCheck      bool
+	healthURL        string
 }
 
 func main() {
@@ -108,7 +111,16 @@ func run(args []string, stdout, stderr io.Writer) error {
 		return err
 	}
 
-	srv := server.NewServer(server.Options{DB: db, Keys: keys, Logger: logger})
+	spaFS, err := resolveDashboardFS(cfg, logger)
+	if err != nil {
+		return err
+	}
+	srv := server.NewServer(server.Options{
+		DB:     db,
+		Keys:   keys,
+		Logger: logger,
+		SPAFS:  spaFS,
+	})
 	httpSrv := &http.Server{
 		Addr:              cfg.listenAddr,
 		Handler:           srv.Handler(),
@@ -156,10 +168,11 @@ func run(args []string, stdout, stderr io.Writer) error {
 // (so they show up as defaults in --help), then flags override.
 func parseFlags(args []string, stderr io.Writer) (config, error) {
 	cfg := config{
-		listenAddr:    envOr("COMAX_LISTEN", ":8080"),
-		dbPath:        envOr("COMAX_DB_PATH", "./data/secrets.db"),
-		masterKeyPath: envOr("COMAX_MASTER_KEY_FILE", "./keys/master.key"),
-		autoGenKey:    envBool("COMAX_AUTO_GENERATE_KEY", true),
+		listenAddr:       envOr("COMAX_LISTEN", ":8080"),
+		dbPath:           envOr("COMAX_DB_PATH", "./data/secrets.db"),
+		masterKeyPath:    envOr("COMAX_MASTER_KEY_FILE", "./keys/master.key"),
+		autoGenKey:       envBool("COMAX_AUTO_GENERATE_KEY", true),
+		dashboardEnabled: envBool("COMAX_DASHBOARD_ENABLED", true),
 	}
 	fs := flag.NewFlagSet("secret-server", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -167,6 +180,9 @@ func parseFlags(args []string, stderr io.Writer) (config, error) {
 	fs.StringVar(&cfg.dbPath, "db", cfg.dbPath, "SQLite database path (env: COMAX_DB_PATH)")
 	fs.StringVar(&cfg.masterKeyPath, "master-key-file", cfg.masterKeyPath, "Path to master key file (env: COMAX_MASTER_KEY_FILE)")
 	fs.BoolVar(&cfg.autoGenKey, "auto-generate-key", cfg.autoGenKey, "Generate the master key if missing (env: COMAX_AUTO_GENERATE_KEY)")
+	fs.BoolVar(&cfg.dashboardEnabled, "dashboard-enabled", cfg.dashboardEnabled,
+		"Serve the embedded dashboard SPA at / (env: COMAX_DASHBOARD_ENABLED). "+
+			"Has no effect on /api or /healthz. Always off when the binary was built without -tags embed_dashboard.")
 	fs.BoolVar(&cfg.printVersion, "version", false, "Print version and exit")
 	fs.BoolVar(&cfg.healthCheck, "health", false, "Probe --health-url and exit 0 on HTTP 200")
 	fs.StringVar(&cfg.healthURL, "health-url", envOr("COMAX_HEALTH_URL", "http://127.0.0.1:8080/healthz"),
@@ -215,6 +231,35 @@ func envBool(name string, fallback bool) bool {
 	default:
 		return false
 	}
+}
+
+// resolveDashboardFS returns the embedded SPA filesystem when both
+// conditions hold: (1) the binary was built with -tags embed_dashboard
+// so dashboard.Embedded() reports true, and (2) the operator did not
+// disable the dashboard via --dashboard-enabled=false /
+// COMAX_DASHBOARD_ENABLED=false.
+//
+// The two conditions are surfaced separately in the log line so the
+// operator can tell why the dashboard is not responding — "built
+// without the embed tag" and "disabled by config" are very different
+// fixes.
+func resolveDashboardFS(cfg config, logger *slog.Logger) (fs.FS, error) {
+	if !cfg.dashboardEnabled {
+		logger.Info("dashboard: disabled by config",
+			slog.Bool("embedded", dashboard.Embedded()),
+		)
+		return nil, nil
+	}
+	if !dashboard.Embedded() {
+		logger.Info("dashboard: dev mode, /api only (rebuild with -tags embed_dashboard to serve the SPA)")
+		return nil, nil
+	}
+	spaFS, err := dashboard.FS()
+	if err != nil {
+		return nil, fmt.Errorf("dashboard fs: %w", err)
+	}
+	logger.Info("dashboard: enabled, serving embedded SPA at /")
+	return spaFS, nil
 }
 
 // ensureMasterKey creates the master key file with mode 0600 when it is
