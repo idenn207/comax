@@ -20,6 +20,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /healthz", s.handleHealth)
 	mux.HandleFunc("POST /api/v1/bootstrap", s.handleBootstrap)
 
+	mux.HandleFunc("POST /api/v1/dashboard/session", s.handleCreateDashboardSession)
+	mux.HandleFunc("DELETE /api/v1/dashboard/session", s.handleRevokeDashboardSession)
+
 	mux.HandleFunc("GET /api/v1/projects", s.handleListProjects)
 	mux.HandleFunc("POST /api/v1/projects", s.handleCreateProject)
 

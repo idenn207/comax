@@ -123,6 +123,35 @@ func (r *TokenRepo) ByHash(ctx context.Context, tokenHash []byte) (ServiceToken,
 	return t, nil
 }
 
+// ByID looks up a service token by primary key. Used by the dashboard
+// session arm of authMiddleware to re-hydrate the underlying actor from
+// a session row's token_id without trusting the cookie further.
+func (r *TokenRepo) ByID(ctx context.Context, id int64) (ServiceToken, error) {
+	var (
+		t          ServiceToken
+		createdAt  int64
+		lastUsedAt sql.NullInt64
+	)
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, name, token_hash, created_at, last_used_at
+		   FROM service_tokens
+		  WHERE id = ?`,
+		id,
+	).Scan(&t.ID, &t.Name, &t.TokenHash, &createdAt, &lastUsedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ServiceToken{}, fmt.Errorf("token %d: %w", id, ErrNotFound)
+	}
+	if err != nil {
+		return ServiceToken{}, fmt.Errorf("token %d: %w", id, err)
+	}
+	t.CreatedAt = unixSeconds(createdAt)
+	if lastUsedAt.Valid {
+		lu := unixSeconds(lastUsedAt.Int64)
+		t.LastUsedAt = &lu
+	}
+	return t, nil
+}
+
 // TouchLastUsed updates the token's last_used_at to now. Returns
 // ErrNotFound if id does not match a row.
 func (r *TokenRepo) TouchLastUsed(ctx context.Context, id int64) error {

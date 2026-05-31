@@ -112,6 +112,21 @@ type AuditEntry struct {
 	CreatedAt  time.Time
 }
 
+// DashboardSession is one browser session for the dashboard UI. It binds
+// a service token to a cookie-shaped credential plus a paired CSRF token;
+// only the SHA-256 hash of each plaintext is persisted.
+type DashboardSession struct {
+	ID           int64
+	TokenID      int64
+	SessionHash  []byte
+	CSRFHash     []byte
+	UserAgent    string
+	IPPrefix     string
+	CreatedAt    time.Time
+	ExpiresAt    time.Time
+	RevokedAt    *time.Time
+}
+
 // Open returns a *sql.DB pointed at dsn with foreign keys enforced and
 // a busy-timeout configured on every pooled connection.
 //
