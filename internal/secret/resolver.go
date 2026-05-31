@@ -15,7 +15,15 @@ import (
 // ResolvedSecret is one fully-resolved secret in an env snapshot: the
 // final plaintext after inheritance overlay and reference expansion,
 // plus the metadata operators care about.
+//
+// SecretID identifies the underlying secrets row that contributed this
+// value. For an env's own keys this is the row in the same env; for
+// inherited keys it is the parent env's row. The dashboard uses this to
+// correlate a resolved entry with its version history without relying
+// on (env, version) heuristics that collide when two keys share the
+// same current version number.
 type ResolvedSecret struct {
+	SecretID  int64
 	Value     string
 	Version   int64
 	UpdatedAt time.Time
@@ -147,6 +155,7 @@ func (rc *resolveCtx) snapshot(envID int64, visited []int64) (Snapshot, error) {
 			return nil, fmt.Errorf("decrypt %s in env=%d: %w", s.Key, envID, err)
 		}
 		merged[s.Key] = ResolvedSecret{
+			SecretID:  s.ID,
 			Value:     string(plain),
 			Version:   s.Version,
 			UpdatedAt: s.UpdatedAt,

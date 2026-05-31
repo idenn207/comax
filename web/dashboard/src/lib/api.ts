@@ -151,8 +151,7 @@ export async function apiFetch<T = unknown>(
     // session cannot mutate, so we treat it as logged-out too. POST
     // /dashboard/session itself returns 401 on a bad token; bubble that
     // to the form rather than triggering a redirect loop.
-    const isSessionCreate =
-      method === 'POST' && path === SESSION_CREATE_PATH;
+    const isSessionCreate = method === 'POST' && path === SESSION_CREATE_PATH;
     if (!isSessionCreate) {
       if (response.status === 401) {
         onUnauthorized(401);
