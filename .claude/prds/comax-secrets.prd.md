@@ -129,7 +129,7 @@
 | # | Milestone | Outcome | Status | Plan |
 |---|---|---|---|---|
 | 1 | **Self-host server + CLI MVP** | 본인의 12개 `.env` 를 단일 서버 + `secret pull/run` 으로 대체. SQLite 단일 마운트. | in-progress | [.claude/plans/comax-secrets.plan.md](../plans/comax-secrets.plan.md) |
-| 2 | **Dashboard UI (Doppler 스타일)** | 웹 UI 에서 project/env/secret CRUD + 버전 diff + rollback + 환경 간 누락 detection. | pending | — |
+| 2 | **Dashboard UI (Doppler 스타일)** | 웹 UI 에서 project/env/secret CRUD + 버전 diff + rollback + 환경 간 누락 detection. | in-progress | [.claude/plans/comax-secrets-dashboard.plan.md](../plans/comax-secrets-dashboard.plan.md) |
 | 3 | **GitHub Actions integration** | GitHub Secret 등록 절차 0 회. action 한 줄로 step env 주입. | pending | — |
 | 4 | **Webhooks + Secret referencing/overrides** | Secret 변경 → Docker 서비스 재시작 webhook. inline 참조와 env override 모델. | pending | — |
 | 5 | **Node/TS SDK + npm publish** | Next.js 앱에서 runtime 시크릿 fetch + cache + reload. | pending | — |

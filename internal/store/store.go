@@ -42,6 +42,11 @@ var (
 	ErrNotFound = errors.New("store: not found")
 	// ErrConflict is returned when a UNIQUE constraint blocks a write.
 	ErrConflict = errors.New("store: conflict")
+	// ErrVersionNotFound is returned by VersionRepo.ByVersion when the
+	// (secret_id, version) pair does not exist. Distinct from ErrNotFound
+	// so the dashboard can show "version 5 was deleted" vs "secret was
+	// never created".
+	ErrVersionNotFound = errors.New("store: version not found")
 )
 
 // Project is a top-level scope: typically one repo / one customer.
@@ -105,6 +110,21 @@ type AuditEntry struct {
 	Target     string
 	Metadata   string // free-form JSON; empty string when unused
 	CreatedAt  time.Time
+}
+
+// DashboardSession is one browser session for the dashboard UI. It binds
+// a service token to a cookie-shaped credential plus a paired CSRF token;
+// only the SHA-256 hash of each plaintext is persisted.
+type DashboardSession struct {
+	ID           int64
+	TokenID      int64
+	SessionHash  []byte
+	CSRFHash     []byte
+	UserAgent    string
+	IPPrefix     string
+	CreatedAt    time.Time
+	ExpiresAt    time.Time
+	RevokedAt    *time.Time
 }
 
 // Open returns a *sql.DB pointed at dsn with foreign keys enforced and

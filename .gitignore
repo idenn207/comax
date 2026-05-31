@@ -14,6 +14,10 @@
 coverage.out
 coverage.html
 cov_*
+/cover
+
+# PRP workflow scratch directories (per-feature plans/reports)
+.claude/PRPs/
 
 # Go workspace files (kept out of version control)
 go.work

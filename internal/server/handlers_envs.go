@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/idenn207/comax-secrets/internal/store"
@@ -124,4 +125,105 @@ func (s *Server) handleCreateEnv(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeOK(w, http.StatusCreated, newEnvView(e), s.logger)
+}
+
+// envDiff is the response payload for handleDiffEnvs. lhs is the env in
+// the URL path; rhs is the env named by `?against=<name>`. Each list is
+// sorted alphabetically so the dashboard renders deterministically.
+type envDiff struct {
+	Lhs     string            `json:"lhs"`
+	Rhs     string            `json:"rhs"`
+	Added   []string          `json:"added"`   // keys present in lhs but not rhs
+	Removed []string          `json:"removed"` // keys present in rhs but not lhs
+	Changed []envDiffChanged  `json:"changed"` // keys present in both with different resolved plaintext
+}
+
+// envDiffChanged carries the per-key version numbers on each side so the
+// dashboard can drill into the specific historical version of either
+// side via GET .../versions/{v}. Plaintext is intentionally omitted —
+// fetching values is a separate, per-row click.
+type envDiffChanged struct {
+	Key        string `json:"key"`
+	LhsVersion int64  `json:"lhs_version"`
+	RhsVersion int64  `json:"rhs_version"`
+}
+
+// handleDiffEnvs returns the set-and-value diff between two envs in the
+// same project, with inheritance applied to both sides before the
+// comparison. "Changed" is judged by the post-resolver plaintext so two
+// envs holding the same key with re-encrypted ciphertext (different
+// nonce, same plaintext) correctly diff as equal.
+func (s *Server) handleDiffEnvs(w http.ResponseWriter, r *http.Request) {
+	p, e, ok := s.resolveEnv(w, r)
+	if !ok {
+		return
+	}
+	againstName := r.URL.Query().Get("against")
+	if err := validateName("against", againstName); err != nil {
+		status, code, msg := httpError(err)
+		writeError(w, status, code, msg, s.logger)
+		return
+	}
+	if againstName == e.Name {
+		writeError(w, http.StatusBadRequest, "bad_request", "against env must differ from path env", s.logger)
+		return
+	}
+	e2, err := store.NewEnvRepo(s.db).ByName(r.Context(), p.ID, againstName)
+	if err != nil {
+		if !errors.Is(err, store.ErrNotFound) {
+			s.logger.Error("lookup against env", slog.String("env", againstName), slog.String("err", err.Error()))
+		}
+		status, code, msg := httpError(err)
+		writeError(w, status, code, msg, s.logger)
+		return
+	}
+
+	lhsSnap, err := s.resolver.Resolve(r.Context(), p.ID, e.ID)
+	if err != nil {
+		s.logger.Warn("resolve lhs env", slog.String("env", e.Name), slog.String("err", err.Error()))
+		status, code, msg := resolverErrorToHTTP(err)
+		writeError(w, status, code, msg, s.logger)
+		return
+	}
+	rhsSnap, err := s.resolver.Resolve(r.Context(), p.ID, e2.ID)
+	if err != nil {
+		s.logger.Warn("resolve rhs env", slog.String("env", e2.Name), slog.String("err", err.Error()))
+		status, code, msg := resolverErrorToHTTP(err)
+		writeError(w, status, code, msg, s.logger)
+		return
+	}
+
+	added := make([]string, 0)
+	changed := make([]envDiffChanged, 0)
+	for k, lhsV := range lhsSnap {
+		rhsV, ok := rhsSnap[k]
+		if !ok {
+			added = append(added, k)
+			continue
+		}
+		if rhsV.Value != lhsV.Value {
+			changed = append(changed, envDiffChanged{
+				Key:        k,
+				LhsVersion: lhsV.Version,
+				RhsVersion: rhsV.Version,
+			})
+		}
+	}
+	removed := make([]string, 0)
+	for k := range rhsSnap {
+		if _, ok := lhsSnap[k]; !ok {
+			removed = append(removed, k)
+		}
+	}
+	sort.Strings(added)
+	sort.Strings(removed)
+	sort.Slice(changed, func(i, j int) bool { return changed[i].Key < changed[j].Key })
+
+	writeOK(w, http.StatusOK, envDiff{
+		Lhs:     e.Name,
+		Rhs:     e2.Name,
+		Added:   added,
+		Removed: removed,
+		Changed: changed,
+	}, s.logger)
 }

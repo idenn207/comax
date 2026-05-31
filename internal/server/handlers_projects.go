@@ -97,3 +97,14 @@ func appendAudit(r *http.Request, tx store.DBTX, action, target string) error {
 	_, err := store.NewAuditRepo(tx).Append(r.Context(), actorID, action, target, "")
 	return err
 }
+
+// appendAuditForToken is appendAudit's escape hatch for endpoints that
+// run *outside* authMiddleware — chiefly POST /dashboard/session, which
+// arrives without an Authorization header (the bearer is in the body).
+// Callers pass the verified token id explicitly so audit attribution
+// stays correct without faking the context stamp.
+func appendAuditForToken(r *http.Request, tx store.DBTX, tokenID int64, action, target string) error {
+	id := tokenID
+	_, err := store.NewAuditRepo(tx).Append(r.Context(), &id, action, target, "")
+	return err
+}

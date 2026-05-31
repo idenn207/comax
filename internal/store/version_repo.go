@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 )
 
@@ -42,6 +44,33 @@ func (r *VersionRepo) Create(ctx context.Context, secretID int64, version int64,
 		ActorToken: actorToken,
 		CreatedAt:  unixSeconds(now),
 	}, nil
+}
+
+// ByVersion returns the single (secretID, version) row, or
+// ErrVersionNotFound when the pair does not exist. Used by the dashboard
+// diff viewer and rollback flow to fetch the ciphertext of a specific
+// historical version without scanning the full timeline.
+func (r *VersionRepo) ByVersion(ctx context.Context, secretID int64, version int64) (SecretVersion, error) {
+	var (
+		v          SecretVersion
+		createdAt  int64
+		actorToken *int64
+	)
+	err := r.db.QueryRowContext(ctx,
+		`SELECT id, secret_id, version, ciphertext, actor_token, created_at
+		   FROM secret_versions
+		  WHERE secret_id = ? AND version = ?`,
+		secretID, version,
+	).Scan(&v.ID, &v.SecretID, &v.Version, &v.Ciphertext, &actorToken, &createdAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return SecretVersion{}, fmt.Errorf("version %d for secret %d: %w", version, secretID, ErrVersionNotFound)
+	}
+	if err != nil {
+		return SecretVersion{}, fmt.Errorf("lookup version %d for secret %d: %w", version, secretID, err)
+	}
+	v.ActorToken = actorToken
+	v.CreatedAt = unixSeconds(createdAt)
+	return v, nil
 }
 
 // ListBySecret returns every historical version for secretID, newest
