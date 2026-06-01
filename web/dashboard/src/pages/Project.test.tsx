@@ -72,7 +72,7 @@ describe('ProjectPage', () => {
     await screen.findByText('base');
     await user.click(screen.getByRole('button', { name: '새 환경' }));
     const dialog = await screen.findByRole('dialog', { name: '새 환경' });
-    expect(within(dialog).getByLabelText('이름')).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('환경 이름')).toBeInTheDocument();
     expect(within(dialog).getByLabelText('상속받을 환경')).toBeInTheDocument();
   });
 

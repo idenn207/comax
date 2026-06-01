@@ -104,7 +104,7 @@ export function CreateEnvDialog({
           <Flex direction="column" gap="3">
             <FormField
               id="create-env-name"
-              label="이름"
+              label="환경 이름"
               hint={NAME_FORMAT_HINT}
               error={nameFieldError}
             >

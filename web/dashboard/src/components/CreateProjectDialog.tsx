@@ -83,7 +83,7 @@ export function CreateProjectDialog({ open, onOpenChange }: CreateProjectDialogP
           <Flex direction="column" gap="3">
             <FormField
               id="create-project-name"
-              label="이름"
+              label="프로젝트 이름"
               hint={NAME_FORMAT_HINT}
               error={nameFieldError}
             >

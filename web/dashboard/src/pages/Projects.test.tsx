@@ -94,7 +94,7 @@ describe('ProjectsPage', () => {
 
     await user.click(await screen.findByRole('button', { name: '새 프로젝트' }));
     const dialog = await screen.findByRole('dialog', { name: '새 프로젝트' });
-    await user.type(within(dialog).getByLabelText('이름'), 'gamma');
+    await user.type(within(dialog).getByLabelText('프로젝트 이름'), 'gamma');
     await user.click(within(dialog).getByRole('button', { name: '생성' }));
 
     await waitFor(() => {
@@ -122,7 +122,7 @@ describe('ProjectsPage', () => {
 
     await user.click(await screen.findByRole('button', { name: '새 프로젝트' }));
     const dialog = await screen.findByRole('dialog', { name: '새 프로젝트' });
-    await user.type(within(dialog).getByLabelText('이름'), 'dup');
+    await user.type(within(dialog).getByLabelText('프로젝트 이름'), 'dup');
     await user.click(within(dialog).getByRole('button', { name: '생성' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('이미 존재');
