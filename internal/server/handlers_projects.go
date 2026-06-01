@@ -15,18 +15,28 @@ import (
 // projectView is the JSON shape we return for projects. Internal IDs
 // are exposed because dashboards / SDKs need a stable handle that
 // survives a rename when we add one in M2; names alone are not enough.
+//
+// EnvCount is filled on the list endpoint via ListWithEnvCounts and left
+// zero by single-project create/lookup paths — the dashboard's Projects
+// grid is the only caller that needs the chip data, and joining on a
+// hot-path single-row create adds noise without a reader.
 type projectView struct {
 	ID        int64     `json:"id"`
 	Name      string    `json:"name"`
 	CreatedAt time.Time `json:"created_at"`
+	EnvCount  int64     `json:"env_count"`
 }
 
 func newProjectView(p store.Project) projectView {
 	return projectView{ID: p.ID, Name: p.Name, CreatedAt: p.CreatedAt}
 }
 
+func newProjectViewWithEnvCount(p store.ProjectWithEnvCount) projectView {
+	return projectView{ID: p.ID, Name: p.Name, CreatedAt: p.CreatedAt, EnvCount: p.EnvCount}
+}
+
 func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
-	projects, err := store.NewProjectRepo(s.db).List(r.Context())
+	projects, err := store.NewProjectRepo(s.db).ListWithEnvCounts(r.Context())
 	if err != nil {
 		s.logger.Error("list projects", slog.String("err", err.Error()))
 		status, code, msg := httpError(err)
@@ -35,7 +45,7 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	}
 	views := make([]projectView, 0, len(projects))
 	for _, p := range projects {
-		views = append(views, newProjectView(p))
+		views = append(views, newProjectViewWithEnvCount(p))
 	}
 	writeOK(w, http.StatusOK, views, s.logger)
 }

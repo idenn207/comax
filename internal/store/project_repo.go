@@ -89,3 +89,47 @@ func (r *ProjectRepo) List(ctx context.Context) ([]Project, error) {
 	}
 	return out, nil
 }
+
+// ProjectWithEnvCount is the list-only projection that pairs a project
+// with the number of environments under it. Embeds Project so callers
+// can still reach .Name / .CreatedAt directly without a second hop.
+type ProjectWithEnvCount struct {
+	Project
+	EnvCount int64
+}
+
+// ListWithEnvCounts returns every project plus its env count in one
+// round-trip. LEFT JOIN (not INNER) so a project with zero environments
+// still surfaces — the dashboard treats "0 configs" as a real state, not
+// a row to hide.
+func (r *ProjectRepo) ListWithEnvCounts(ctx context.Context) ([]ProjectWithEnvCount, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT p.id, p.name, p.created_at, p.updated_at, COUNT(e.id)
+		 FROM projects p
+		 LEFT JOIN environments e ON e.project_id = p.id
+		 GROUP BY p.id
+		 ORDER BY p.name`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list projects with env counts: %w", err)
+	}
+	defer rows.Close()
+
+	var out []ProjectWithEnvCount
+	for rows.Next() {
+		var (
+			entry                ProjectWithEnvCount
+			createdAt, updatedAt int64
+		)
+		if err := rows.Scan(&entry.ID, &entry.Name, &createdAt, &updatedAt, &entry.EnvCount); err != nil {
+			return nil, fmt.Errorf("scan project: %w", err)
+		}
+		entry.CreatedAt = unixSeconds(createdAt)
+		entry.UpdatedAt = unixSeconds(updatedAt)
+		out = append(out, entry)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate projects: %w", err)
+	}
+	return out, nil
+}

@@ -187,6 +187,10 @@ func TestListProjects_MultipleEntries(t *testing.T) {
 	ts.bootstrap(t)
 	mustCreate(t, ts, "/api/v1/projects", map[string]string{"name": "alpha"})
 	mustCreate(t, ts, "/api/v1/projects", map[string]string{"name": "beta"})
+	// One env under alpha, none under beta. The list response must carry
+	// the env_count field so the Projects grid can render its configs chip
+	// without a second round-trip per card.
+	mustCreate(t, ts, "/api/v1/projects/alpha/envs", map[string]string{"name": "dev"})
 
 	status, env := ts.do(t, http.MethodGet, "/api/v1/projects", nil)
 	if status != http.StatusOK {
@@ -194,7 +198,26 @@ func TestListProjects_MultipleEntries(t *testing.T) {
 	}
 	rows := env.Data.([]any)
 	if len(rows) != 2 {
-		t.Errorf("rows=%d; want 2", len(rows))
+		t.Fatalf("rows=%d; want 2", len(rows))
+	}
+	counts := map[string]float64{}
+	for _, raw := range rows {
+		row, ok := raw.(map[string]any)
+		if !ok {
+			t.Fatalf("row type=%T; want map", raw)
+		}
+		name, _ := row["name"].(string)
+		count, ok := row["env_count"].(float64)
+		if !ok {
+			t.Fatalf("row %q missing env_count: %+v", name, row)
+		}
+		counts[name] = count
+	}
+	if counts["alpha"] != 1 {
+		t.Errorf("alpha env_count = %v; want 1", counts["alpha"])
+	}
+	if counts["beta"] != 0 {
+		t.Errorf("beta env_count = %v; want 0 (LEFT JOIN surfaces zero-env projects)", counts["beta"])
 	}
 }
 
