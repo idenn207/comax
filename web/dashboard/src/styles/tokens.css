@@ -1,83 +1,252 @@
 /*
- * Design tokens — per ECC web/coding-style.md.
- * Hand-tuned for a Doppler-adjacent direction but not a clone: dark-by-
- * default surface, indigo accent, oklch palette so the dark/light split
- * stays perceptually flat. Tailwind mirrors the names that get used in
- * markup; other tokens (durations, easings) are reached via var() in CSS.
+ * Design tokens — monochrome 100.
  *
- * Theme contract: <html data-theme="light"|"dark"> drives the swap.
- * Radix Themes appearance is set in lockstep via the ThemeRoot wrapper.
+ * Color strategy: surfaces, text, borders, and PRIMARY ACTIONS are all
+ * neutral graphite (hue 260, low chroma). There is no chromatic accent
+ * for current/selected/primary — those signals are carried by surface
+ * elevation, border strength, and weight contrast. Semantic colors
+ * (success, danger, warning, info) survive because they encode meaning
+ * the operator must distinguish; they never decorate.
+ *
+ * Why monochrome: amber (the prior accent) reads as "AI YouTube PPT"
+ * in 2026; primary on a security tool should feel like a terminal, not
+ * a marketing deck. GitHub Primer + Linear are the references — neutral
+ * filled buttons, blue focus ring, color reserved for state.
+ *
+ * Focus ring lives on a separate hue (cool blue, 250) so it stands
+ * apart from any text color without competing with the neutral palette.
+ *
+ * Desktop-app constraint: fixed rem scale (no clamp), system font stacks
+ * with Korean-first fallback chain (Pretendard → Apple SD Gothic Neo →
+ * Malgun Gothic), and explicit window-shaped layout vars (--shell-*).
+ *
+ * Theme contract: <html data-theme="light"|"dark"> drives the swap and is
+ * pre-applied by the inline script in index.html before React mounts.
  */
 
 :root,
 [data-theme='light'] {
-  /* Surfaces: page is the lowest layer, elevated is the lift for cards
-     and popovers, hover/active toggle the perceived lift on interaction. */
-  --color-surface: oklch(98% 0.005 250);
+  /* ── Surfaces ──
+     panel (nav) < surface (page) < surface-elevated (cards) < hover < active. */
+  --color-surface: oklch(98.5% 0.002 260);
   --color-surface-elevated: oklch(100% 0 0);
-  --color-surface-hover: oklch(96% 0.008 250);
-  --color-text: oklch(18% 0.02 250);
-  --color-text-subtle: oklch(40% 0.02 250);
-  --color-muted: oklch(60% 0.02 250);
-  --color-accent: oklch(58% 0.21 270);
-  --color-accent-text: oklch(98% 0 0);
-  --color-accent-soft: oklch(95% 0.04 270);
-  --color-border: oklch(90% 0.01 250);
-  --color-border-strong: oklch(80% 0.015 250);
+  --color-surface-hover: oklch(95.5% 0.004 260);
+  --color-surface-active: oklch(92% 0.006 260);
+  --color-panel: oklch(97% 0.003 260);
 
-  /* Semantic status colors. *-soft pairs are background tints used by
-     diff rows and badges; the base is the foreground text color so they
-     stay legible against the soft background in both themes. */
-  --color-danger: oklch(50% 0.22 25);
+  /* ── Text ── target ≥5.5:1 on body for operator confidence.
+     text-faint is the lightest still-readable tier; previously 64% L it
+     fell to 3.36:1 on white (axe AA violation on the project card date).
+     48% L lands at ≈4.85:1 against --color-surface-elevated, safely above
+     the WCAG AA 4.5:1 floor. It now sits just below --color-muted (52%);
+     muted is reserved for non-body roles (icons, dividers, hover) where
+     the 3:1 large-text rule applies. */
+  --color-text: oklch(20% 0.012 260);
+  --color-text-subtle: oklch(40% 0.010 260);
+  --color-muted: oklch(52% 0.008 260);
+  --color-text-faint: oklch(48% 0.008 260);
+
+  /* ── Borders ── */
+  --color-border: oklch(90% 0.004 260);
+  --color-border-strong: oklch(78% 0.006 260);
+
+  /* ── Primary action (monochrome filled) ──
+     Used by .btn-primary and Radix Themes solid buttons (via accentColor="gray").
+     The "accent" token names are kept so any existing var(--color-accent*)
+     reference auto-migrates to the neutral palette without code edits. */
+  --color-accent: oklch(22% 0.010 260);
+  --color-accent-hover: oklch(30% 0.010 260);
+  --color-accent-active: oklch(14% 0.010 260);
+  --color-accent-soft: oklch(95% 0.004 260);
+  --color-accent-soft-hover: oklch(92% 0.006 260);
+  --color-accent-text: oklch(98% 0.002 260);
+  --color-accent-strong: oklch(14% 0.010 260);
+
+  /* ── Semantic ──
+     Reserved for STATE. They never carry primary actions or decoration.
+       success: muted green (completed, applied, verified).
+       danger:  red (destroy, irreversible).
+       warning: amber (stale, drift, pending change). The only place amber
+                still appears, and only to mean "needs attention".
+       info:    blue (passive reference, links). */
+  --color-danger: oklch(52% 0.20 25);
   --color-danger-soft: oklch(95% 0.04 25);
-  --color-success: oklch(45% 0.18 145);
-  --color-success-soft: oklch(94% 0.05 145);
-  --color-warning: oklch(60% 0.16 75);
-  --color-warning-soft: oklch(95% 0.05 75);
+  --color-danger-strong: oklch(38% 0.20 25);
+  --color-warning: oklch(60% 0.16 70);
+  --color-warning-soft: oklch(95% 0.05 70);
+  --color-warning-strong: oklch(42% 0.16 70);
+  --color-success: oklch(48% 0.12 150);
+  --color-success-soft: oklch(94% 0.04 150);
+  --color-info: oklch(50% 0.14 250);
+  --color-info-soft: oklch(94% 0.04 250);
 
-  /* Focus ring shared across interactive elements. 2px outline with
-     offset gives ~3:1 contrast against either surface (WCAG 1.4.11
-     non-text contrast). */
-  --color-focus-ring: oklch(58% 0.21 270);
+  /* ── Code surface ── */
+  --color-code-bg: oklch(96% 0.004 260);
+  --color-code-text: oklch(28% 0.012 260);
 
-  --text-base: clamp(0.95rem, 0.9rem + 0.25vw, 1rem);
-  --text-lg: clamp(1.05rem, 1rem + 0.3vw, 1.15rem);
-  --text-xl: clamp(1.25rem, 1.15rem + 0.5vw, 1.5rem);
-  --text-display: clamp(2rem, 1.5rem + 2vw, 3rem);
-  --text-hero: clamp(2.5rem, 1.8rem + 3vw, 4rem);
+  /* ── Focus ring ── cool blue (hue 250), separated from any text color
+     so it reads as "keyboard focus" rather than "selected" or "primary". */
+  --color-focus-ring: oklch(58% 0.18 250);
 
-  --space-section: clamp(2.5rem, 2rem + 2vw, 5rem);
+  /* ── Typography (fixed rem, product register) ── */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 0.9375rem;
+  --text-lg: 1.0625rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-display: 2.25rem;
+  --text-hero: 2.75rem;
+  --line-tight: 1.2;
+  --line-snug: 1.35;
+  --line-normal: 1.55;
+  --line-relaxed: 1.7;
+
+  /* ── Font families ──
+     Pretendard first (covers Hangul + Latin with consistent metrics, the
+     de-facto Korean dashboard typeface). Then Apple SD Gothic Neo (macOS)
+     and Malgun Gothic (Windows) so OS-installed Korean fonts pick up if
+     Pretendard isn't loaded. system-ui last so the OS body font is the
+     terminal fallback rather than a generic sans.
+     If CSP blocks the @font-face below, the system Korean fonts still
+     produce a readable result with no FOUT into Latin-only Segoe UI. */
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system,
+               BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic',
+               '맑은 고딕', 'Segoe UI', system-ui, ui-sans-serif, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono',
+               Menlo, Consolas, monospace;
+
+  /* ── Spacing (4-pt) ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-section: 32px;
+
+  /* ── Radius ── subdued for OS-native feel. */
+  --radius-xs: 2px;
   --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 20px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-full: 9999px;
 
-  --duration-fast: 150ms;
-  --duration-normal: 240ms;
-  --duration-slow: 420ms;
+  /* ── Shadow ── kept light. */
+  --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.05);
+  --shadow-md: 0 2px 6px oklch(0% 0 0 / 0.07), 0 1px 2px oklch(0% 0 0 / 0.04);
+  --shadow-lg: 0 8px 24px oklch(0% 0 0 / 0.09), 0 2px 4px oklch(0% 0 0 / 0.04);
+  --shadow-drawer: -12px 0 32px oklch(0% 0 0 / 0.10);
+  --shadow-palette: 0 16px 48px oklch(0% 0 0 / 0.18), 0 2px 8px oklch(0% 0 0 / 0.08);
+
+  /* ── Motion ──
+     150-200ms is the product-register sweet spot. Reduced motion overrides
+     these to ~0 in globals.css (single source). */
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 360ms;
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  /* No --ease-out-back. Overshoot/bounce curves violate DESIGN.md
+     Motion ("bounce/elastic 금지") and need to be unavailable at the
+     token layer, not just unused — token-level seal. */
+
+  /* ── Shell layout ──
+     Fixed widths so layouts survive a desktop window resize without
+     fluid breakage. The content max keeps wide monitors readable.
+     --shell-header-search-width pins the search bar so the breadcrumb
+     can grow without shifting it. */
+  --shell-nav-width: 232px;
+  --shell-header-height: 56px;
+  --shell-header-search-width: 480px;
+  --shell-drawer-width: 380px;
+  --shell-content-max: 1280px;
+  --shell-content-padding: 24px;
+
+  /* ── Dialog widths ──
+     Two tiers so the dialog family reads as one despite different
+     content density. sm: name-only forms (project, env). md: forms
+     including a textarea or wider grid (secret value). */
+  --dialog-width-sm: 480px;
+  --dialog-width-md: 560px;
+
+  /* ── Diff / version row heights ──
+     Fixed row heights so react-window virtualization is trivial and the
+     two surfaces (diff viewer + version list) share the same vertical
+     rhythm inside the version drawer. Diff is a single line of mono
+     text; version row is two lines (v# + timestamp). */
+  --diff-row-height: 24px;
+  --drawer-version-row-height: 56px;
+
+  /* ── Z-index scale ── semantic, no arbitrary values. */
+  --z-sticky: 20;
+  --z-nav: 30;
+  --z-drawer-backdrop: 40;
+  --z-drawer: 50;
+  --z-modal-backdrop: 60;
+  --z-modal: 70;
+  --z-palette: 80;
+  --z-toast: 90;
+  --z-tooltip: 100;
 }
 
 [data-theme='dark'] {
-  --color-surface: oklch(15% 0.02 250);
-  --color-surface-elevated: oklch(19% 0.025 250);
-  --color-surface-hover: oklch(22% 0.027 250);
-  --color-text: oklch(95% 0.005 250);
-  --color-text-subtle: oklch(75% 0.01 250);
-  --color-muted: oklch(60% 0.02 250);
-  --color-accent: oklch(72% 0.18 270);
-  --color-accent-text: oklch(12% 0.02 250);
-  --color-accent-soft: oklch(28% 0.08 270);
-  --color-border: oklch(26% 0.02 250);
-  --color-border-strong: oklch(36% 0.025 250);
+  /* Dark surfaces, graphite, hue 260, very low chroma so it reads as
+     "terminal at night" rather than "blue UI". */
+  --color-surface: oklch(15% 0.006 260);
+  --color-surface-elevated: oklch(19% 0.008 260);
+  --color-surface-hover: oklch(23% 0.010 260);
+  --color-surface-active: oklch(27% 0.011 260);
+  --color-panel: oklch(12% 0.005 260);
 
-  --color-danger: oklch(78% 0.2 25);
-  --color-danger-soft: oklch(28% 0.1 25);
-  --color-success: oklch(78% 0.16 145);
-  --color-success-soft: oklch(26% 0.08 145);
-  --color-warning: oklch(80% 0.15 75);
-  --color-warning-soft: oklch(28% 0.08 75);
+  --color-text: oklch(96% 0.004 260);
+  --color-text-subtle: oklch(78% 0.006 260);
+  --color-muted: oklch(60% 0.008 260);
+  /* Dark: 48% L on the 19% L elevated surface gave ~2.9:1 — below the
+     AA 4.5:1 floor by the same axe rule as light. 62% lands at ≈4.6:1
+     on elevated surface and ≈5.5:1 on the panel/surface ground. */
+  --color-text-faint: oklch(62% 0.008 260);
 
-  --color-focus-ring: oklch(78% 0.16 270);
+  --color-border: oklch(27% 0.010 260);
+  --color-border-strong: oklch(38% 0.012 260);
+
+  /* Primary inverts: near-white filled, ink text. Hover slightly dim so
+     pressing the button feels like a press rather than a flash. */
+  --color-accent: oklch(96% 0.004 260);
+  --color-accent-hover: oklch(90% 0.004 260);
+  --color-accent-active: oklch(84% 0.004 260);
+  --color-accent-soft: oklch(24% 0.008 260);
+  --color-accent-soft-hover: oklch(28% 0.010 260);
+  --color-accent-text: oklch(15% 0.006 260);
+  --color-accent-strong: oklch(100% 0 0);
+
+  --color-danger: oklch(72% 0.20 25);
+  --color-danger-soft: oklch(28% 0.10 25);
+  --color-danger-strong: oklch(86% 0.20 25);
+  --color-warning: oklch(78% 0.15 70);
+  --color-warning-soft: oklch(28% 0.08 70);
+  --color-warning-strong: oklch(88% 0.16 70);
+  --color-success: oklch(72% 0.12 150);
+  --color-success-soft: oklch(24% 0.05 150);
+  --color-info: oklch(72% 0.14 250);
+  --color-info-soft: oklch(24% 0.06 250);
+
+  --color-code-bg: oklch(20% 0.008 260);
+  --color-code-text: oklch(86% 0.008 260);
+
+  /* Focus ring stays cool blue in both themes so muscle memory carries. */
+  --color-focus-ring: oklch(72% 0.16 250);
+
+  --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.40);
+  --shadow-md: 0 2px 6px oklch(0% 0 0 / 0.50), 0 1px 2px oklch(0% 0 0 / 0.30);
+  --shadow-lg: 0 8px 24px oklch(0% 0 0 / 0.55), 0 2px 4px oklch(0% 0 0 / 0.30);
+  --shadow-drawer: -12px 0 32px oklch(0% 0 0 / 0.40);
+  --shadow-palette: 0 16px 48px oklch(0% 0 0 / 0.60), 0 2px 8px oklch(0% 0 0 / 0.30);
 }

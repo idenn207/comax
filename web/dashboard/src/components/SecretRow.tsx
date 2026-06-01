@@ -1,15 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
-import { Badge, Button, Flex, IconButton, Table, Text, TextArea } from '@radix-ui/themes';
+import { Button, Flex, IconButton, Table, Text, TextArea } from '@radix-ui/themes';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { ApiError } from '../lib/api';
 import { deleteSecret, putSecret, queryKeys } from '../lib/queries';
 import type { ResolvedSecret } from '../lib/types';
+import { Alert } from './Alert';
 import { ConfirmDialog } from './ConfirmDialog';
 import { useToast } from './Toast';
 
 /**
  * One row of the secrets table.
+ *
+ * Layout follows the Doppler 3-column rhythm: [key + version chip] |
+ * [masked-or-revealed value in mono] | [updated time + actions]. The
+ * amber accent appears ONLY on the version chip and the focused state;
+ * the rest stays graphite so the 80:20 mono+amber contract holds.
  *
  * State machine: viewing → editing → saving → viewing.
  *   - mask toggle exists in viewing only (editing always shows plaintext
@@ -85,9 +91,6 @@ export function SecretRow({ projectName, envName, secret, onOpenHistory }: Secre
   function onSave() {
     setEditError(null);
     if (draft === secret.value) {
-      // Don't issue a no-op PUT. We keep the editor open so the
-      // operator can adjust the value or hit Cancel — silently
-      // dismissing here would feel like the save succeeded.
       setEditError('값이 바뀌지 않았습니다. 값을 수정하거나 취소를 눌러 주세요.');
       return;
     }
@@ -96,18 +99,15 @@ export function SecretRow({ projectName, envName, secret, onOpenHistory }: Secre
 
   return (
     <>
-      <Table.Row>
+      <Table.Row data-secret-key={secret.key}>
         <Table.RowHeaderCell>
           <Flex align="center" gap="2">
-            <Text
-              weight="medium"
-              style={{ fontFamily: 'var(--code-font-family, ui-monospace, monospace)' }}
-            >
+            <Text className="mono secret-cell-key" weight="medium">
               {secret.key}
             </Text>
-            <Badge variant="soft" color="indigo">
+            <span className="chip chip-mono chip-accent" aria-label={`현재 버전 ${secret.version}`}>
               v{secret.version}
-            </Badge>
+            </span>
           </Flex>
         </Table.RowHeaderCell>
         <Table.Cell>
@@ -121,18 +121,12 @@ export function SecretRow({ projectName, envName, secret, onOpenHistory }: Secre
                 spellCheck={false}
                 aria-label={`${secret.key} 새 값`}
               />
-              {editError ? (
-                <Text role="alert" color="red" size="1">
-                  {editError}
-                </Text>
-              ) : null}
+              <Alert variant="page" message={editError} />
             </Flex>
           ) : (
             <Text
-              style={{
-                fontFamily: 'var(--code-font-family, ui-monospace, monospace)',
-                wordBreak: 'break-all',
-              }}
+              className="mono secret-cell-value"
+              data-revealed={revealed ? 'true' : 'false'}
               aria-label={revealed ? `${secret.key} 값 표시됨` : `${secret.key} 값 마스킹됨`}
             >
               {revealed ? secret.value : maskValue(secret.value)}
@@ -140,7 +134,7 @@ export function SecretRow({ projectName, envName, secret, onOpenHistory }: Secre
           )}
         </Table.Cell>
         <Table.Cell>
-          <Text size="1" color="gray">
+          <Text size="1" className="secret-cell-updated">
             {new Date(secret.updated_at).toLocaleString('ko-KR')}
           </Text>
         </Table.Cell>
@@ -175,7 +169,7 @@ export function SecretRow({ projectName, envName, secret, onOpenHistory }: Secre
               <Button
                 size="1"
                 variant="soft"
-                color="indigo"
+                color="gray"
                 onClick={() => onOpenHistory(secret.key)}
                 aria-label={`${secret.key} 버전 이력`}
               >

@@ -1,10 +1,12 @@
 import { useState, type FormEvent } from 'react';
-import { Button, Callout, Dialog, Flex, Text, TextArea, TextField } from '@radix-ui/themes';
+import { Button, Dialog, Flex, TextArea, TextField } from '@radix-ui/themes';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { ApiError } from '../lib/api';
 import { putSecret, queryKeys } from '../lib/queries';
-import { nameError } from '../lib/validate';
+import { NAME_FORMAT_HINT, nameError } from '../lib/validate';
+import { Alert } from './Alert';
+import { FormField } from './FormField';
 import { useToast } from './Toast';
 
 interface AddSecretDialogProps {
@@ -26,7 +28,10 @@ export function AddSecretDialog({
   const toast = useToast();
   const [key, setKey] = useState('');
   const [value, setValue] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  // Split: keyError attaches to the key FormField (client-side validation
+  // we can localize); formError is server-side and not field-specific.
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: ({ k, v }: { k: string; v: string }) => putSecret(projectName, envName, k, v),
@@ -41,21 +46,24 @@ export function AddSecretDialog({
       onOpenChange(false);
     },
     onError: (err: unknown) => {
-      setError(err instanceof ApiError ? err.message : '저장에 실패했습니다.');
+      setFormError(
+        err instanceof ApiError ? err.message : '저장에 실패했습니다. 잠시 후 다시 시도해 주세요.',
+      );
     },
   });
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
+    setKeyError(null);
+    setFormError(null);
     const trimmedKey = key.trim();
     const validation = nameError('key', trimmedKey);
     if (validation) {
-      setError(validation);
+      setKeyError(validation);
       return;
     }
     if (existingKeys.has(trimmedKey)) {
-      setError('같은 이름의 키가 이미 존재합니다. 표에서 직접 편집해 주세요.');
+      setKeyError('같은 이름의 키가 이미 존재합니다. 표에서 직접 편집해 주세요.');
       return;
     }
     mutation.mutate({ k: trimmedKey, v: value });
@@ -68,51 +76,45 @@ export function AddSecretDialog({
         if (!next) {
           setKey('');
           setValue('');
-          setError(null);
+          setKeyError(null);
+          setFormError(null);
           mutation.reset();
         }
         onOpenChange(next);
       }}
     >
-      <Dialog.Content maxWidth="520px">
+      <Dialog.Content maxWidth="var(--dialog-width-md)">
         <Dialog.Title>새 시크릿</Dialog.Title>
         <Dialog.Description size="2" mb="3">
           저장 즉시 새 버전이 생성되며 감사 로그에 기록됩니다.
         </Dialog.Description>
         <form onSubmit={onSubmit}>
           <Flex direction="column" gap="3">
-            <label>
-              <Text as="div" size="2" mb="1" weight="medium">
-                키
-              </Text>
-              <TextField.Root
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-                placeholder="예: DATABASE_URL"
-                autoFocus
-                spellCheck={false}
-                aria-label="키 이름"
-              />
-            </label>
-            <label>
-              <Text as="div" size="2" mb="1" weight="medium">
-                값
-              </Text>
-              <TextArea
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder="값을 입력하세요"
-                rows={4}
-                spellCheck={false}
-                aria-label="시크릿 값"
-              />
-            </label>
-            {error ? (
-              <Callout.Root color="red" role="alert">
-                <Callout.Text>{error}</Callout.Text>
-              </Callout.Root>
-            ) : null}
-            <Flex gap="3" mt="2" justify="end">
+            <FormField id="add-secret-key" label="키" hint={NAME_FORMAT_HINT} error={keyError}>
+              {(fieldProps) => (
+                <TextField.Root
+                  {...fieldProps}
+                  value={key}
+                  onChange={(e) => setKey(e.target.value)}
+                  placeholder="예: DATABASE_URL"
+                  autoFocus
+                  spellCheck={false}
+                />
+              )}
+            </FormField>
+            <FormField id="add-secret-value" label="값" hint="저장 즉시 새 버전이 생성됩니다.">
+              {(fieldProps) => (
+                <TextArea
+                  {...fieldProps}
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  rows={4}
+                  spellCheck={false}
+                />
+              )}
+            </FormField>
+            <Alert variant="form" message={formError} />
+            <Flex gap="3" justify="end">
               <Dialog.Close>
                 <Button variant="soft" color="gray" type="button">
                   취소

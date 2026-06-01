@@ -12,6 +12,14 @@ export interface Project {
   id: number;
   name: string;
   created_at: string;
+  /**
+   * Number of environments under this project. Filled by the list
+   * endpoint (server handlers_projects.go::handleListProjects via
+   * ListWithEnvCounts) so the Projects grid renders the configs chip
+   * without a second round-trip per card. Single-project create/lookup
+   * endpoints leave this 0; only the list view reads it.
+   */
+  env_count: number;
 }
 
 export interface Environment {

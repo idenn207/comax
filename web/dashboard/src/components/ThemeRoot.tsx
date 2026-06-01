@@ -20,7 +20,7 @@ export function ThemeRoot({ children }: { children: ReactNode }) {
   const state = useTheme();
   return (
     <ThemeStateContext.Provider value={state}>
-      <Theme appearance={state.appearance} accentColor="indigo" grayColor="slate" radius="medium">
+      <Theme appearance={state.appearance} accentColor="gray" grayColor="slate" radius="medium">
         {children}
       </Theme>
     </ThemeStateContext.Provider>

@@ -13,7 +13,13 @@ vi.mock('@tanstack/react-router', async () => {
     await vi.importActual<typeof import('@tanstack/react-router')>('@tanstack/react-router');
   return {
     ...actual,
-    useRouter: () => ({ navigate: navigateMock }),
+    useRouter: () => ({
+      navigate: navigateMock,
+      state: { matches: [] },
+      subscribe: () => () => {},
+    }),
+    useRouterState: <T,>({ select }: { select: (s: { matches: unknown[] }) => T }) =>
+      select({ matches: [] }),
     Link: ({ children, ...rest }: { children: React.ReactNode } & Record<string, unknown>) => (
       <a {...(rest as Record<string, unknown>)}>{children}</a>
     ),
@@ -53,26 +59,34 @@ describe('ProjectsPage', () => {
     expect(await screen.findByRole('dialog', { name: '새 프로젝트' })).toBeInTheDocument();
   });
 
-  it('lists projects returned from the API', async () => {
+  it('lists projects returned from the API and renders each card with its env_count chip', async () => {
     fetchMock.mockResolvedValueOnce(
       mockEnvelope([
-        { id: 1, name: 'alpha', created_at: '2026-01-01T00:00:00Z' },
-        { id: 2, name: 'beta', created_at: '2026-01-02T00:00:00Z' },
+        { id: 1, name: 'alpha', created_at: '2026-01-01T00:00:00Z', env_count: 3 },
+        { id: 2, name: 'beta', created_at: '2026-01-02T00:00:00Z', env_count: 0 },
       ]),
     );
     renderWithProviders(<ProjectsPage />);
 
     expect(await screen.findByText('alpha')).toBeInTheDocument();
     expect(screen.getByText('beta')).toBeInTheDocument();
+    // Each card carries the Doppler-vocabulary chip wired to env_count.
+    // Beta has zero envs and must still render "0 configs" rather than
+    // collapsing the chip (DESIGN.md principle 3: missing is a signal).
+    expect(screen.getByText('3 configs')).toBeInTheDocument();
+    expect(screen.getByText('0 configs')).toBeInTheDocument();
   });
 
   it('creates a project via POST and clears the form on success', async () => {
     fetchMock.mockResolvedValueOnce(mockEnvelope([])); // initial list
     fetchMock.mockResolvedValueOnce(
-      mockEnvelope({ id: 1, name: 'gamma', created_at: '2026-01-03T00:00:00Z' }, { status: 201 }),
+      mockEnvelope(
+        { id: 1, name: 'gamma', created_at: '2026-01-03T00:00:00Z', env_count: 0 },
+        { status: 201 },
+      ),
     );
     fetchMock.mockResolvedValueOnce(
-      mockEnvelope([{ id: 1, name: 'gamma', created_at: '2026-01-03T00:00:00Z' }]),
+      mockEnvelope([{ id: 1, name: 'gamma', created_at: '2026-01-03T00:00:00Z', env_count: 0 }]),
     );
 
     const user = userEvent.setup();
@@ -80,7 +94,7 @@ describe('ProjectsPage', () => {
 
     await user.click(await screen.findByRole('button', { name: '새 프로젝트' }));
     const dialog = await screen.findByRole('dialog', { name: '새 프로젝트' });
-    await user.type(within(dialog).getByLabelText('프로젝트 이름'), 'gamma');
+    await user.type(within(dialog).getByLabelText('이름'), 'gamma');
     await user.click(within(dialog).getByRole('button', { name: '생성' }));
 
     await waitFor(() => {
@@ -108,7 +122,7 @@ describe('ProjectsPage', () => {
 
     await user.click(await screen.findByRole('button', { name: '새 프로젝트' }));
     const dialog = await screen.findByRole('dialog', { name: '새 프로젝트' });
-    await user.type(within(dialog).getByLabelText('프로젝트 이름'), 'dup');
+    await user.type(within(dialog).getByLabelText('이름'), 'dup');
     await user.click(within(dialog).getByRole('button', { name: '생성' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('이미 존재');

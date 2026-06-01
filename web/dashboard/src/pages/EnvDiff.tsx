@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ApiError } from '../lib/api';
 import { diffEnvs, listEnvs, queryKeys } from '../lib/queries';
 import { AppShell } from '../components/AppShell';
+import { PageHeader } from '../components/PageHeader';
 
 interface EnvDiffPageProps {
   projectName: string;
@@ -69,8 +70,24 @@ export function EnvDiffPage({ projectName, envName, against }: EnvDiffPageProps)
     ? diffQuery.data.added.length + diffQuery.data.removed.length + diffQuery.data.changed.length
     : 0;
 
+  // Eyebrow promotes the missing-key count first per Design Principle #3
+  // ("누락은 1급 시각 신호"). The added count never makes the eyebrow —
+  // new keys are informational, not an alarm. Order: vs target → 누락 →
+  // 변경 → (일치 when all three buckets are empty).
+  const eyebrow = (() => {
+    if (!against) return '비교 대상 선택';
+    if (!diffQuery.data) return `vs ${against}`;
+    const { added, removed, changed } = diffQuery.data;
+    const parts: string[] = [`vs ${against}`];
+    if (removed.length > 0) parts.push(`누락 ${removed.length}`);
+    if (changed.length > 0) parts.push(`변경 ${changed.length}`);
+    if (removed.length === 0 && changed.length === 0 && added.length === 0) parts.push('일치');
+    return parts.join(' · ');
+  })();
+
   return (
     <AppShell
+      active="projects"
       crumbs={[
         { label: '프로젝트', to: '/' },
         { label: projectName, to: '/projects/$project', params: { project: projectName } },
@@ -81,29 +98,24 @@ export function EnvDiffPage({ projectName, envName, against }: EnvDiffPageProps)
         },
         { label: '비교' },
       ]}
-      actions={
-        <Button variant="soft" color="gray" asChild>
-          <Link to="/projects/$project/envs/$env" params={{ project: projectName, env: envName }}>
-            시크릿 목록
-          </Link>
-        </Button>
-      }
     >
-      <Box>
-        <Heading size="6" mb="1">
-          {envName} 환경 비교
-        </Heading>
-        <Text color="gray" size="2">
-          상속이 적용된 결과를 기준으로 두 환경의 키 셋과 값을 비교합니다. 값은 표시되지 않으며 버전
-          번호만 노출됩니다.
-        </Text>
-      </Box>
+      <PageHeader
+        title={`${envName} 환경 비교`}
+        eyebrow={eyebrow}
+        actions={
+          <Button variant="soft" color="gray" asChild>
+            <Link to="/projects/$project/envs/$env" params={{ project: projectName, env: envName }}>
+              시크릿 목록
+            </Link>
+          </Button>
+        }
+      />
 
       <Flex align="center" gap="3" wrap="wrap">
         <Text size="2" color="gray">
           비교 대상
         </Text>
-        <Box style={{ minWidth: 200 }}>
+        <Box className="min-w-[200px]">
           <Select.Root
             value={against || undefined}
             onValueChange={onSelectAgainst}
@@ -141,10 +153,12 @@ export function EnvDiffPage({ projectName, envName, against }: EnvDiffPageProps)
 
       {!diffEnabled ? (
         <Card variant="surface">
-          <Flex direction="column" gap="1" p="4" align="start">
-            <Heading size="3">환경을 선택하세요</Heading>
-            <Text color="gray" size="2">
-              비교할 환경을 선택하면 키 셋과 변경된 값이 세 분류로 표시됩니다.
+          <Flex direction="column" gap="2" p="5" align="start">
+            <Heading as="h2" size="4" trim="start">
+              비교할 환경을 선택하세요
+            </Heading>
+            <Text size="2" color="gray">
+              위 ‘비교 대상’ 드롭다운에서 다른 환경을 골라 누락·변경·신규 키를 확인합니다.
             </Text>
           </Flex>
         </Card>
@@ -174,24 +188,26 @@ export function EnvDiffPage({ projectName, envName, against }: EnvDiffPageProps)
         <>
           {totalChanges === 0 ? (
             <Card variant="surface">
-              <Flex direction="column" gap="1" p="4" align="start">
-                <Heading size="3">두 환경이 동일합니다</Heading>
+              <Flex direction="column" gap="2" p="5" align="start">
+                <Heading as="h2" size="4" trim="start">
+                  두 환경이 동일합니다
+                </Heading>
                 <Text color="gray" size="2">
-                  {envName} 환경과 {against} 환경의 키·값이 모두 일치합니다.
+                  {envName} ↔ {against}: 키와 값이 모두 일치.
                 </Text>
               </Flex>
             </Card>
           ) : (
+            /* Column reading order is the signal: removed (emphasized)
+               first because Design Principle #3 names "누락" a 1급 시각
+               signal, then changed (drift), then added (informational).
+               Symmetric 3-col grid said "all three are equal news"; this
+               order makes the operator's eye land on what they must act
+               on. The redundant per-row meta ("신규 키" / "비교 대상
+               환경에만 존재") is dropped from added/removed — those
+               labels were synonyms of the column title and stole weight
+               from the key name itself. */
             <Grid columns={{ initial: '1', md: '3' }} gap="3">
-              <DiffColumn
-                title={`${envName}에만 있음`}
-                badge={`+${diffQuery.data.added.length}`}
-                color="green"
-                emptyLabel="추가된 키 없음"
-                project={projectName}
-                linkEnv={envName}
-                items={diffQuery.data.added.map((key) => ({ key, meta: '신규 키' }))}
-              />
               <DiffColumn
                 title={`${against}에만 있음`}
                 badge={`−${diffQuery.data.removed.length}`}
@@ -199,10 +215,8 @@ export function EnvDiffPage({ projectName, envName, against }: EnvDiffPageProps)
                 emptyLabel="제거된 키 없음"
                 project={projectName}
                 linkEnv={against}
-                items={diffQuery.data.removed.map((key) => ({
-                  key,
-                  meta: '비교 대상 환경에만 존재',
-                }))}
+                emphasized
+                items={diffQuery.data.removed.map((key) => ({ key }))}
               />
               <DiffColumn
                 title="값이 다름"
@@ -216,6 +230,15 @@ export function EnvDiffPage({ projectName, envName, against }: EnvDiffPageProps)
                   meta: `${envName} v${c.lhs_version} ↔ ${against} v${c.rhs_version}`,
                 }))}
               />
+              <DiffColumn
+                title={`${envName}에만 있음`}
+                badge={`+${diffQuery.data.added.length}`}
+                color="green"
+                emptyLabel="추가된 키 없음"
+                project={projectName}
+                linkEnv={envName}
+                items={diffQuery.data.added.map((key) => ({ key }))}
+              />
             </Grid>
           )}
         </>
@@ -226,7 +249,9 @@ export function EnvDiffPage({ projectName, envName, against }: EnvDiffPageProps)
 
 interface DiffItem {
   key: string;
-  meta: string;
+  /** Optional per-row metadata. Only `changed` rows carry it (version pair);
+   *  removed/added rows omit it so the key name itself reads as the signal. */
+  meta?: string;
 }
 
 interface DiffColumnProps {
@@ -237,62 +262,59 @@ interface DiffColumnProps {
   project: string;
   linkEnv: string;
   items: DiffItem[];
+  /** When true, the column tilts toward danger-soft surface + larger title.
+   *  Reserved for the "removed = missing" column per Design Principle #3. */
+  emphasized?: boolean;
 }
 
-function DiffColumn({ title, badge, color, emptyLabel, project, linkEnv, items }: DiffColumnProps) {
+function DiffColumn({
+  title,
+  badge,
+  color,
+  emptyLabel,
+  project,
+  linkEnv,
+  items,
+  emphasized = false,
+}: DiffColumnProps) {
+  // Globals.css owns the surface + title scale. Radix Card asChild paints
+  // its own background, which fights the `.diff-col-emphasized` ground
+  // tint; raw <section> with the globals utility class wins.
+  const className = emphasized ? 'diff-col diff-col-emphasized' : 'diff-col';
   return (
-    <Card variant="surface" asChild>
-      <section aria-label={title}>
-        <Flex direction="column" gap="2" p="3">
-          <Flex align="center" justify="between">
-            <Heading size="3" trim="start">
-              {title}
-            </Heading>
-            <Badge color={color} variant="soft" aria-label={`항목 수 ${items.length}`}>
-              {badge}
-            </Badge>
-          </Flex>
-          {items.length === 0 ? (
-            <Text color="gray" size="2">
-              {emptyLabel}
-            </Text>
-          ) : (
-            <Flex direction="column" gap="1">
-              {items.map((item) => (
-                <Link
-                  key={item.key}
-                  to="/projects/$project/envs/$env"
-                  params={{ project, env: linkEnv }}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                  aria-label={`${item.key} — ${item.meta}`}
-                >
-                  <Box
-                    style={{
-                      padding: '8px 10px',
-                      borderRadius: 'var(--radius-2)',
-                      border: '1px solid var(--gray-a4)',
-                      background: 'var(--gray-a2)',
-                    }}
-                  >
-                    <Flex justify="between" align="center" gap="2">
-                      <Text
-                        size="2"
-                        weight="medium"
-                        style={{ fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' }}
-                      >
-                        {item.key}
-                      </Text>
-                      <Text size="1" color="gray">
-                        {item.meta}
-                      </Text>
-                    </Flex>
-                  </Box>
-                </Link>
-              ))}
-            </Flex>
-          )}
+    <section aria-label={title} className={className}>
+      <Flex align="center" justify="between" gap="2">
+        <h2 className="diff-col-title">{title}</h2>
+        <Badge color={color} variant="soft" aria-label={`항목 수 ${items.length}`}>
+          {badge}
+        </Badge>
+      </Flex>
+      {items.length === 0 ? (
+        <span className="diff-col-empty">{emptyLabel}</span>
+      ) : (
+        <Flex direction="column" gap="1">
+          {items.map((item) => (
+            <Link
+              key={item.key}
+              to="/projects/$project/envs/$env"
+              params={{ project, env: linkEnv }}
+              className="diff-key"
+              aria-label={item.meta ? `${item.key} — ${item.meta}` : item.key}
+            >
+              <div className="flex justify-between items-center gap-2">
+                <Text size="2" weight="medium" className="mono">
+                  {item.key}
+                </Text>
+                {item.meta ? (
+                  <Text size="1" color="gray">
+                    {item.meta}
+                  </Text>
+                ) : null}
+              </div>
+            </Link>
+          ))}
         </Flex>
-      </section>
-    </Card>
+      )}
+    </section>
   );
 }

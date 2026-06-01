@@ -13,7 +13,13 @@ vi.mock('@tanstack/react-router', async () => {
   return {
     ...actual,
     useNavigate: () => navigateMock,
-    useRouter: () => ({ navigate: navigateMock }),
+    useRouter: () => ({
+      navigate: navigateMock,
+      state: { matches: [] },
+      subscribe: () => () => {},
+    }),
+    useRouterState: <T,>({ select }: { select: (s: { matches: unknown[] }) => T }) =>
+      select({ matches: [] }),
     Link: ({ children, ...rest }: { children: React.ReactNode } & Record<string, unknown>) => (
       <a {...(rest as Record<string, unknown>)}>{children}</a>
     ),
@@ -51,7 +57,9 @@ describe('EnvDiffPage', () => {
   it('shows the env-picker empty state when no against is chosen', async () => {
     fetchMock.mockResolvedValueOnce(envelope(seedEnvs));
     renderWithProviders(<EnvDiffPage projectName="alpha" envName="local" against="" />);
-    expect(await screen.findByRole('heading', { name: '환경을 선택하세요' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: '비교할 환경을 선택하세요' }),
+    ).toBeInTheDocument();
     // Diff endpoint should not have been called yet.
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/v1/projects/alpha/envs');

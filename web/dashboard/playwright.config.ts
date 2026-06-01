@@ -23,8 +23,20 @@ export default defineConfig({
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:9090',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
+    // DESIGN.md seals visual decisions at 1920×1080; the dashboard targets
+    // operator desktops, not the 1280×720 default. Pinning the viewport
+    // here makes the seal config-driven instead of test-by-test.
+    viewport: { width: 1920, height: 1080 },
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    {
+      name: 'chromium',
+      // The project spread overrides the top-level `use`, so we re-pin the
+      // viewport here to keep the seal at 1920×1080 even if Playwright
+      // changes the Desktop Chrome default in a future release.
+      use: { ...devices['Desktop Chrome'], viewport: { width: 1920, height: 1080 } },
+    },
+  ],
   globalSetup: './tests/e2e/global-setup.ts',
   globalTeardown: './tests/e2e/global-teardown.ts',
 });

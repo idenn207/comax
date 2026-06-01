@@ -30,36 +30,39 @@ const sampleProject = {
   id: 7,
   name: 'alpha',
   created_at: '2026-04-01T12:34:56Z',
+  env_count: 3,
 };
 
 describe('ProjectCard', () => {
-  it('renders the name, id badge, and creation time', () => {
+  it('renders the name as the only heading and the configs chip with env_count', () => {
     renderWithProviders(<ProjectCard project={sampleProject} />);
     expect(screen.getByRole('heading', { name: 'alpha' })).toBeInTheDocument();
-    expect(screen.getByText('#7')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: '프로젝트 alpha 열기' })).toBeInTheDocument();
-    // <time> with ISO datetime present so screen readers + a11y get a
-    // machine-readable timestamp.
-    expect(screen.getByText(/생성일/)).toBeInTheDocument();
-    // ProjectCard formats via new Date().toISOString() which always
-    // emits the millisecond field, so we normalize through the same
-    // path rather than hardcoding the literal.
-    expect(screen.getByRole('time')).toHaveAttribute(
-      'datetime',
-      new Date(sampleProject.created_at).toISOString(),
+    // V1 spec carries the env count as Doppler vocabulary; the chip's
+    // aria-label localizes it for Korean screen readers.
+    expect(screen.getByText('3 configs')).toBeInTheDocument();
+    expect(screen.getByLabelText('환경 3개')).toBeInTheDocument();
+  });
+
+  it('omits the legacy #id chip, creation timestamp, and featured flag', () => {
+    // V1 stripped the bento featured tile and the id/created_at metadata.
+    // These assertions pin the contract so a future re-introduction of
+    // either signal trips a test instead of silently slipping in.
+    const { container } = renderWithProviders(<ProjectCard project={sampleProject} />);
+    expect(screen.queryByText('#7')).not.toBeInTheDocument();
+    expect(screen.queryByText(/생성일/)).not.toBeInTheDocument();
+    expect(container.querySelector('time')).toBeNull();
+    expect(container.querySelector('.project-card')).not.toHaveAttribute('data-featured');
+  });
+
+  it('renders zero configs as "0 configs" without hiding the chip', () => {
+    // LEFT JOIN surfaces zero-env projects on the backend; the card must
+    // honour that by rendering the chip at 0, not collapsing it. "Missing
+    // configs" is a 1급 visual signal per DESIGN.md principle 3.
+    renderWithProviders(
+      <ProjectCard project={{ ...sampleProject, env_count: 0 }} />,
     );
-  });
-
-  it('marks the featured card with data-featured="true" and surfaces the lede', () => {
-    const { container } = renderWithProviders(<ProjectCard project={sampleProject} featured />);
-    const link = container.querySelector('.project-card');
-    expect(link).not.toBeNull();
-    expect(link).toHaveAttribute('data-featured', 'true');
-    expect(screen.getByText(/가장 최근에 만들어진 프로젝트/)).toBeInTheDocument();
-  });
-
-  it('omits the featured lede on regular cards', () => {
-    renderWithProviders(<ProjectCard project={sampleProject} />);
-    expect(screen.queryByText(/가장 최근에 만들어진 프로젝트/)).not.toBeInTheDocument();
+    expect(screen.getByText('0 configs')).toBeInTheDocument();
+    expect(screen.getByLabelText('환경 0개')).toBeInTheDocument();
   });
 });

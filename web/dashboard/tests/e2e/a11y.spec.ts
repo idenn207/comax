@@ -21,7 +21,7 @@ test.describe('dashboard a11y (WCAG 2.2 AA)', () => {
     await checkA11y(page);
   });
 
-  test('/ (projects bento home) passes axe', async ({ page }) => {
+  test('/ (projects grid home) passes axe', async ({ page }) => {
     await loginWithBootstrap(page);
     await page.goto('/');
     await expect(page.getByRole('heading', { name: '프로젝트', exact: true })).toBeVisible();
@@ -44,7 +44,7 @@ test.describe('dashboard a11y (WCAG 2.2 AA)', () => {
     const projectName = `a11y-${Date.now()}`;
     const envName = 'prod';
 
-    // Create a project so the bento home has both empty-state and
+    // Create a project so the grid home has both empty-state and
     // populated-state coverage in the same run.
     await page.goto('/');
     await page.getByRole('button', { name: '새 프로젝트' }).click();

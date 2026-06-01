@@ -1,16 +1,6 @@
-import { useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  Callout,
-  Card,
-  Flex,
-  Heading,
-  Table,
-  Text,
-  TextField,
-} from '@radix-ui/themes';
-import { Link } from '@tanstack/react-router';
+import { useEffect, useMemo, useState } from 'react';
+import { Box, Button, Callout, Card, Flex, Table, Text, TextField } from '@radix-ui/themes';
+import { Link, useRouterState } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 
 import { ApiError } from '../lib/api';
@@ -18,6 +8,7 @@ import { formatDotenv } from '../lib/dotenv';
 import { listSecrets, queryKeys } from '../lib/queries';
 import { AppShell } from '../components/AppShell';
 import { AddSecretDialog } from '../components/AddSecretDialog';
+import { PageHeader } from '../components/PageHeader';
 import { SecretRow } from '../components/SecretRow';
 import { VersionTimelinePanel } from '../components/VersionTimelinePanel';
 import { useToast } from '../components/Toast';
@@ -68,6 +59,39 @@ export function EnvSecretsPage({ projectName, envName }: EnvSecretsPageProps) {
     return (secrets ?? []).find((s) => s.key === historyKey) ?? null;
   }, [historyKey, secrets]);
 
+  // Deep-link from the command palette: navigating to
+  // /projects/$p/envs/$e#$key lands here with a hash. Once the secrets
+  // list is in the DOM we scroll the matching row into view and pulse
+  // an ink highlight that fades over 1.5s so the operator's eye lands
+  // on the right line. Read the hash through router state (not via a
+  // `hashchange` listener) because TanStack Router uses pushState,
+  // which does not fire hashchange — picking a second key while
+  // already on this env would otherwise be silently missed.
+  const routerHash = useRouterState({ select: (s) => s.location.hash });
+  const hash = typeof routerHash === 'string' ? routerHash.replace(/^#/, '') : '';
+  useEffect(() => {
+    if (!hash || !secrets || secrets.length === 0) return;
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(hash);
+    } catch {
+      decoded = hash;
+    }
+    const escaped = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(decoded) : decoded;
+    const frame = window.requestAnimationFrame(() => {
+      const row = document.querySelector<HTMLElement>(`[data-secret-key="${escaped}"]`);
+      if (!row) return;
+      row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      row.classList.add('cmdk-row-highlight');
+      window.setTimeout(() => {
+        row.classList.remove('cmdk-row-highlight');
+      }, 1500);
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [hash, secrets]);
+
   async function onCopyAll() {
     const rows = visible.map((s) => ({ key: s.key, value: s.value }));
     if (rows.length === 0) {
@@ -85,50 +109,43 @@ export function EnvSecretsPage({ projectName, envName }: EnvSecretsPageProps) {
 
   return (
     <AppShell
+      active="projects"
       crumbs={[
         { label: '프로젝트', to: '/' },
         { label: projectName, to: '/projects/$project', params: { project: projectName } },
         { label: envName },
       ]}
-      actions={
-        <Flex gap="2">
-          <Button variant="soft" color="gray" asChild>
-            <Link
-              to="/projects/$project/envs/$env/diff"
-              params={{ project: projectName, env: envName }}
-              search={{}}
-              aria-label="다른 환경과 비교"
-            >
-              환경 비교
-            </Link>
-          </Button>
-          <Button
-            variant="soft"
-            color="gray"
-            onClick={onCopyAll}
-            disabled={isLoading || visible.length === 0}
-            aria-label=".env 형식으로 복사"
-          >
-            .env 복사
-          </Button>
-          <Button onClick={() => setAddOpen(true)} disabled={isLoading}>
-            새 시크릿
-          </Button>
-        </Flex>
-      }
     >
-      <Box>
-        {/* Page-level h1. Radix Heading defaults to <h1>, but we name it
-            explicitly so a future swap to a different size never silently
-            drops the landmark heading. */}
-        <Heading as="h1" size="6" mb="1">
-          {envName}
-        </Heading>
-        <Text color="gray" size="2">
-          상속을 적용한 결과를 보여줍니다. 표시되는 값은 plaintext 이며 마스킹은 화면에서만
-          처리됩니다.
-        </Text>
-      </Box>
+      <PageHeader
+        title={envName}
+        eyebrow={`${projectName} / 환경`}
+        actions={
+          <>
+            <Button variant="soft" color="gray" asChild>
+              <Link
+                to="/projects/$project/envs/$env/diff"
+                params={{ project: projectName, env: envName }}
+                search={{}}
+                aria-label="다른 환경과 비교"
+              >
+                환경 비교
+              </Link>
+            </Button>
+            <Button
+              variant="soft"
+              color="gray"
+              onClick={onCopyAll}
+              disabled={isLoading || visible.length === 0}
+              aria-label=".env 형식으로 복사"
+            >
+              .env 복사
+            </Button>
+            <Button onClick={() => setAddOpen(true)} disabled={isLoading}>
+              새 시크릿
+            </Button>
+          </>
+        }
+      />
 
       {error ? (
         <Callout.Root color="red" role="alert">
@@ -162,14 +179,9 @@ export function EnvSecretsPage({ projectName, envName }: EnvSecretsPageProps) {
 
       {secrets && secrets.length === 0 ? (
         <Card variant="surface">
-          <Flex direction="column" gap="2" p="4" align="start">
-            <Heading as="h2" size="3">
-              시크릿이 없습니다
-            </Heading>
-            <Text color="gray" size="2">
-              새 시크릿을 추가하거나, 다른 환경에서 상속받도록 설정하세요.
-            </Text>
-            <Button mt="2" onClick={() => setAddOpen(true)}>
+          <Flex direction="column" gap="3" p="5" align="start">
+            <h2 className="text-lg font-semibold tracking-tight m-0">시크릿이 없습니다</h2>
+            <Button mt="1" onClick={() => setAddOpen(true)}>
               첫 시크릿 추가
             </Button>
           </Flex>
@@ -179,7 +191,7 @@ export function EnvSecretsPage({ projectName, envName }: EnvSecretsPageProps) {
       {secrets && secrets.length > 0 ? (
         <Flex direction="column" gap="3">
           <Flex gap="3" align="center" wrap="wrap">
-            <Box style={{ minWidth: 200, flex: '1 1 240px' }}>
+            <Box className="min-w-[200px] flex-[1_1_240px]">
               <TextField.Root
                 placeholder="키 검색"
                 value={filter}
