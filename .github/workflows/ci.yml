@@ -18,7 +18,8 @@ env:
   COVER_FLOOR: "70"
   # Pin the dashboard Node + pnpm versions in lockstep with
   # web/dashboard/package.json (packageManager + engines fields).
-  NODE_VERSION: "20"
+  # pnpm >=11 imports node:sqlite, which requires Node 22.13+.
+  NODE_VERSION: "22"
   PNPM_VERSION: "11"
 
 jobs:
