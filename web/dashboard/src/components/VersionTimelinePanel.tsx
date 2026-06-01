@@ -1,42 +1,46 @@
 import { useMemo, useState } from 'react';
-import {
-  Badge,
-  Box,
-  Button,
-  Callout,
-  Dialog,
-  Flex,
-  Heading,
-  Separator,
-  Text,
-} from '@radix-ui/themes';
+import { Box, Button, Text } from '@radix-ui/themes';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { List, type RowComponentProps } from 'react-window';
 
 import { ApiError } from '../lib/api';
+import { diffLines } from '../lib/diff';
 import { getVersionDetail, listVersions, queryKeys, rollbackSecret } from '../lib/queries';
-import type { ResolvedSecret } from '../lib/types';
+import type { ResolvedSecret, SecretVersionListEntry } from '../lib/types';
+import { Alert } from './Alert';
 import { ConfirmDialog } from './ConfirmDialog';
 import { DiffViewer } from './DiffViewer';
+import { Drawer } from './Drawer';
 import { useToast } from './Toast';
 
+/** Virtualize the version list past this many rows; below it the inline
+ *  <ul> with a 4px gap reads better and skips react-window's mount cost.
+ *  Mirrors DiffViewer's INLINE_THRESHOLD so the two surfaces share one
+ *  policy for "when does this need windowing". */
+const INLINE_THRESHOLD = 50;
+/** Visible button is 56px (= --drawer-version-row-height); each row in
+ *  react-window adds a 4px buffer below so virtualized rhythm matches
+ *  the inline list's gap-4. */
+const VIRTUALIZED_ROW_HEIGHT = 60;
+
 /**
- * Per-key version timeline + side-by-side diff viewer + rollback action.
+ * Per-key version timeline + diff viewer + rollback action.
  *
- * The plan said "side panel"; for v1 we host it inside a Dialog so we
- * don't have to thread layout state through the page. The trade-off is
- * the operator loses the table while reviewing history — acceptable for
- * the operator-of-one persona this milestone targets. A real Drawer can
- * land in M3 when the audit + diff views need to coexist.
+ * Lives inside a right-anchored drawer (380px) so the secret table behind
+ * stays partially visible — the operator never loses the row that led
+ * here. Layout is a single vertical stack: sticky header (key + close)
+ * → version list (max 40vh) → diff region (fills remaining height) →
+ * sticky footer (close / rollback).
  *
  * Version list comes from GET .../versions for the whole env (M2 read
- * endpoint) — filtered client-side to this key. The plan calls this out
- * explicitly: a per-key list endpoint can be added in M3, but until then
- * the env-level call is the canonical source of "what versions exist".
+ * endpoint) — filtered client-side per secret_id so two keys that share
+ * a current version number don't collide.
  *
- * Selection model: at most one version selected at a time. Selecting a
- * version triggers GET .../versions/{v} on demand (cached by TanStack
- * Query so re-selecting is free). Diff renders against the current
- * resolved secret.
+ * Selection model: at most one version selected at a time. Selecting
+ * triggers GET .../versions/{v} on demand (cached by TanStack Query so
+ * re-selecting is free). Diff renders against the current resolved
+ * secret. Switching to a different row's "이력" button replaces the
+ * drawer's contents in place (single-drawer model).
  */
 interface VersionTimelinePanelProps {
   open: boolean;
@@ -64,11 +68,6 @@ export function VersionTimelinePanel({
     enabled: open,
   });
 
-  // The env-level list returns versions for every key. We filter by
-  // secret_id — the resolved view now carries it (handlers_secrets.go),
-  // so two keys with the same current version number no longer collide.
-  // A per-key list endpoint can replace this in M3 if the env-level
-  // payload grows expensive.
   const filteredVersions = useMemo(() => {
     const all = versionsQuery.data ?? [];
     return all
@@ -103,93 +102,148 @@ export function VersionTimelinePanel({
 
   const selectedDetail = detailQuery.data;
   const canDiff = selected !== null && selected !== secret.version;
-  const canRollback = selected !== null && selected !== secret.version;
+  const canRollback = canDiff;
+
+  // Diff is computed in the parent so the +N / −M summary can render in
+  // the drawer-section-label-row alongside the "차이" eyebrow, instead of
+  // duplicating inside DiffViewer's own header. diffLines is O(n*m) but
+  // the inputs are short (a secret value), and useMemo keeps re-renders
+  // cheap when only the selected version changes.
+  const diffOps = useMemo(() => {
+    if (!canDiff || !selectedDetail) return null;
+    return diffLines(selectedDetail.value, secret.value);
+  }, [canDiff, selectedDetail, secret.value]);
+
+  const diffSummary = useMemo(() => {
+    if (!diffOps) return null;
+    let added = 0;
+    let removed = 0;
+    for (const op of diffOps) {
+      if (op.kind === 'added') added += 1;
+      else if (op.kind === 'removed') removed += 1;
+    }
+    return { added, removed };
+  }, [diffOps]);
 
   return (
-    <Dialog.Root
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) setSelected(null);
-        onOpenChange(next);
-      }}
-    >
-      <Dialog.Content maxWidth="900px">
-        <Dialog.Title>
-          <Flex align="center" gap="2">
-            <Text>{secret.key}</Text>
-            <Badge color="indigo" variant="soft">
+    <>
+      <Drawer
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) setSelected(null);
+          onOpenChange(next);
+        }}
+        ariaLabel={`${secret.key} 버전 이력`}
+      >
+        <Drawer.Header>
+          <div className="drawer-title-row">
+            <Drawer.Title asChild>
+              <h2 className="drawer-title-key">{secret.key}</h2>
+            </Drawer.Title>
+            <span
+              className="chip chip-mono chip-accent drawer-current-chip"
+              aria-label={`현재 버전 ${secret.version}`}
+            >
               현재 v{secret.version}
-            </Badge>
-          </Flex>
-        </Dialog.Title>
-        <Dialog.Description size="2" mb="3">
-          버전을 선택하면 현재 값과의 차이를 보여주고, 그 버전의 ciphertext 로 새 버전을 만들어
-          롤백할 수 있습니다.
-        </Dialog.Description>
+            </span>
+          </div>
+          <Drawer.Close asChild>
+            <button type="button" className="icon-button" aria-label="닫기">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                <path
+                  d="M3 3L11 11M11 3L3 11"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </Drawer.Close>
+        </Drawer.Header>
 
-        {versionsQuery.error ? (
-          <Callout.Root color="red" role="alert" mb="2">
-            <Callout.Text>
-              버전 이력을 불러오지 못했습니다.
-              {versionsQuery.error instanceof ApiError ? ` (${versionsQuery.error.code})` : null}
-            </Callout.Text>
-          </Callout.Root>
-        ) : null}
+        <Drawer.Description asChild>
+          <span className="visually-hidden">
+            버전 이력과 차이를 확인하고 이전 버전으로 롤백합니다.
+          </span>
+        </Drawer.Description>
 
-        <Flex gap="4" direction={{ initial: 'column', md: 'row' }} align="stretch">
-          <Box style={{ minWidth: 220 }} flexGrow="0">
-            <Heading size="2" mb="2">
-              버전
-            </Heading>
-            {versionsQuery.isLoading ? (
+        <Drawer.Body>
+          {versionsQuery.error ? (
+            <Box px="5" pt="3">
+              <Alert
+                variant="page"
+                message={
+                  '버전 이력을 불러오지 못했습니다.' +
+                  (versionsQuery.error instanceof ApiError ? ` (${versionsQuery.error.code})` : '')
+                }
+              />
+            </Box>
+          ) : null}
+
+          <div className="drawer-section-label">버전</div>
+          {versionsQuery.isLoading ? (
+            <div className="drawer-section-pad">
               <Text size="2" color="gray" role="status">
                 불러오는 중…
               </Text>
-            ) : null}
-            {filteredVersions.length === 0 && !versionsQuery.isLoading ? (
+            </div>
+          ) : null}
+          {filteredVersions.length === 0 && !versionsQuery.isLoading ? (
+            <div className="drawer-section-pad">
               <Text size="2" color="gray">
                 이력이 없습니다.
               </Text>
+            </div>
+          ) : null}
+          {filteredVersions.length > INLINE_THRESHOLD ? (
+            <div
+              className="drawer-version-list-virtual"
+              role="list"
+              aria-label={`${secret.key} 버전 목록`}
+            >
+              <List
+                rowCount={filteredVersions.length}
+                rowHeight={VIRTUALIZED_ROW_HEIGHT}
+                rowProps={{
+                  versions: filteredVersions,
+                  currentVersion: secret.version,
+                  selectedVersion: selected,
+                  onSelect: setSelected,
+                }}
+                rowComponent={VirtualizedVersionRow}
+                defaultHeight={320}
+                style={{ height: '100%' }}
+              />
+            </div>
+          ) : (
+            <ul className="drawer-version-list">
+              {filteredVersions.map((v) => (
+                <li key={v.id}>
+                  <VersionRowButton
+                    version={v}
+                    isCurrent={v.version === secret.version}
+                    isSelected={v.version === selected}
+                    onSelect={setSelected}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <div className="drawer-section-label-row">
+            <span>차이</span>
+            {diffSummary && selectedDetail ? (
+              <span className="drawer-section-label-meta" aria-live="polite">
+                +{diffSummary.added} / −{diffSummary.removed} · v{selectedDetail.version} → v
+                {secret.version}
+              </span>
             ) : null}
-            <Flex direction="column" gap="1" asChild>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {filteredVersions.map((v) => {
-                  const isCurrent = v.version === secret.version;
-                  const isSelected = v.version === selected;
-                  return (
-                    <li key={v.id}>
-                      <Button
-                        variant={isSelected ? 'solid' : 'soft'}
-                        color={isCurrent ? 'indigo' : 'gray'}
-                        style={{ width: '100%', justifyContent: 'flex-start' }}
-                        onClick={() => setSelected(v.version)}
-                        aria-pressed={isSelected}
-                        aria-label={`버전 ${v.version}${isCurrent ? ' (현재)' : ''} 선택`}
-                      >
-                        <Flex direction="column" align="start" gap="0">
-                          <Text size="2" weight="medium">
-                            v{v.version}
-                            {isCurrent ? ' · 현재' : ''}
-                          </Text>
-                          <Text size="1" color="gray">
-                            {new Date(v.created_at).toLocaleString('ko-KR')}
-                          </Text>
-                        </Flex>
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Flex>
-          </Box>
-          <Separator orientation="vertical" size="4" />
-          <Box flexGrow="1">
-            <Heading size="2" mb="2">
-              차이
-            </Heading>
+          </div>
+          <div className="drawer-diff-region">
             {selected === null ? (
               <Text size="2" color="gray">
-                왼쪽에서 비교할 버전을 선택해 주세요.
+                위에서 비교할 버전을 골라 차이를 확인하고, 필요하면 그 버전의 ciphertext 로 새
+                버전을 만들어 롤백합니다.
               </Text>
             ) : null}
             {selected === secret.version ? (
@@ -203,39 +257,38 @@ export function VersionTimelinePanel({
               </Text>
             ) : null}
             {canDiff && detailQuery.error ? (
-              <Callout.Root color="red" role="alert">
-                <Callout.Text>
-                  버전 값을 불러오지 못했습니다.
-                  {detailQuery.error instanceof ApiError ? ` (${detailQuery.error.code})` : null}
-                </Callout.Text>
-              </Callout.Root>
+              <Alert
+                variant="page"
+                message={
+                  '버전 값을 불러오지 못했습니다.' +
+                  (detailQuery.error instanceof ApiError ? ` (${detailQuery.error.code})` : '')
+                }
+              />
             ) : null}
-            {canDiff && selectedDetail ? (
+            {canDiff && selectedDetail && diffOps ? (
               <DiffViewer
                 leftLabel={`v${selectedDetail.version}`}
                 rightLabel={`v${secret.version} (현재)`}
-                left={selectedDetail.value}
-                right={secret.value}
+                ops={diffOps}
               />
             ) : null}
-          </Box>
-        </Flex>
+          </div>
+        </Drawer.Body>
 
-        <Flex gap="3" mt="4" justify="end" align="center">
-          <Dialog.Close>
+        <Drawer.Footer>
+          <Drawer.Close asChild>
             <Button variant="soft" color="gray">
               닫기
             </Button>
-          </Dialog.Close>
+          </Drawer.Close>
           <Button
-            color="indigo"
             disabled={!canRollback || rollbackMutation.isPending}
             onClick={() => setConfirmRollbackOpen(true)}
           >
             {rollbackMutation.isPending ? '롤백 중…' : '이 버전으로 롤백'}
           </Button>
-        </Flex>
-      </Dialog.Content>
+        </Drawer.Footer>
+      </Drawer>
 
       {selected !== null ? (
         <ConfirmDialog
@@ -249,12 +302,86 @@ export function VersionTimelinePanel({
             </Text>
           }
           confirmLabel="롤백"
-          color="indigo"
+          intent="warning"
           onConfirm={async () => {
             await rollbackMutation.mutateAsync(selected);
           }}
         />
       ) : null}
-    </Dialog.Root>
+    </>
+  );
+}
+
+interface VersionRowButtonProps {
+  version: SecretVersionListEntry;
+  isCurrent: boolean;
+  isSelected: boolean;
+  onSelect: (version: number) => void;
+  style?: React.CSSProperties;
+}
+
+/**
+ * One row in the version list. Used inline (≤50 versions) and inside the
+ * virtualized List (>50). Fixed height (.drawer-version-button) so
+ * react-window doesn't need to measure rows. Custom button instead of
+ * Radix's because Radix Button's height is fluid and the two-line layout
+ * (v# + timestamp) needs a fixed slot.
+ */
+function VersionRowButton({
+  version,
+  isCurrent,
+  isSelected,
+  onSelect,
+  style,
+}: VersionRowButtonProps) {
+  return (
+    <button
+      type="button"
+      className="drawer-version-button"
+      onClick={() => onSelect(version.version)}
+      aria-pressed={isSelected}
+      aria-label={`버전 ${version.version}${isCurrent ? ' (현재)' : ''} 선택`}
+      style={style}
+    >
+      <span className="drawer-version-button-label">
+        v{version.version}
+        {isCurrent ? ' · 현재' : ''}
+      </span>
+      <span className="drawer-version-button-meta">
+        {new Date(version.created_at).toLocaleString('ko-KR')}
+      </span>
+    </button>
+  );
+}
+
+interface VirtualizedVersionRowProps {
+  versions: SecretVersionListEntry[];
+  currentVersion: number;
+  selectedVersion: number | null;
+  onSelect: (version: number) => void;
+}
+
+function VirtualizedVersionRow({
+  index,
+  style,
+  versions,
+  currentVersion,
+  selectedVersion,
+  onSelect,
+  ariaAttributes,
+}: RowComponentProps<VirtualizedVersionRowProps>) {
+  const v = versions[index];
+  // Buffer the bottom 4px inside the row wrapper so virtualized rhythm
+  // matches the inline list's gap-4. The button itself stays at
+  // --drawer-version-row-height.
+  return (
+    <div style={{ ...style, paddingBottom: 4 }} {...ariaAttributes}>
+      <VersionRowButton
+        version={v}
+        isCurrent={v.version === currentVersion}
+        isSelected={v.version === selectedVersion}
+        onSelect={onSelect}
+      />
+    </div>
   );
 }

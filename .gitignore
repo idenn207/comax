@@ -32,7 +32,10 @@ go.work.sum
 # Editor / IDE
 .vscode/
 .idea/
+.playwright-mcp/
+.impeccable/
 *.swp
+*.stackdump
 
 # Project-specific (per plan: keys and DB live outside the repo)
 .secretrc

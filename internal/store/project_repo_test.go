@@ -94,3 +94,40 @@ func TestProjectRepo_ListEmpty(t *testing.T) {
 		t.Errorf("expected empty list; got %d", len(got))
 	}
 }
+
+func TestProjectRepo_ListWithEnvCounts(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	projects := NewProjectRepo(db)
+	envs := NewEnvRepo(db)
+
+	alpha, err := projects.Create(ctx, "alpha")
+	if err != nil {
+		t.Fatalf("seed alpha: %v", err)
+	}
+	if _, err := projects.Create(ctx, "beta"); err != nil {
+		t.Fatalf("seed beta: %v", err)
+	}
+	for _, name := range []string{"dev", "prod", "shared"} {
+		if _, err := envs.Create(ctx, alpha.ID, name, ""); err != nil {
+			t.Fatalf("seed env %q: %v", name, err)
+		}
+	}
+
+	got, err := projects.ListWithEnvCounts(ctx)
+	if err != nil {
+		t.Fatalf("ListWithEnvCounts: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("rows = %d; want 2", len(got))
+	}
+	if got[0].Name != "alpha" || got[1].Name != "beta" {
+		t.Errorf("order = %q,%q; want alpha,beta", got[0].Name, got[1].Name)
+	}
+	if got[0].EnvCount != 3 {
+		t.Errorf("alpha env_count = %d; want 3", got[0].EnvCount)
+	}
+	if got[1].EnvCount != 0 {
+		t.Errorf("beta env_count = %d; want 0 (LEFT JOIN surfaces zero-env projects)", got[1].EnvCount)
+	}
+}

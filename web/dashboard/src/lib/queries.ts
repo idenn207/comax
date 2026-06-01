@@ -12,6 +12,8 @@
  * components, where intent (success toast vs. silent refresh) lives.
  */
 
+import type { QueryClient } from '@tanstack/react-query';
+
 import { apiFetch, apiFetchEnvelope } from './api';
 import type {
   AuditEntry,
@@ -160,6 +162,47 @@ export async function diffEnvs(
     `/api/v1/projects/${encode(project)}/envs/${encode(env)}/diff?against=${encode(against)}`,
     { signal },
   );
+}
+
+/**
+ * Warm the env list cache for every project in parallel.
+ *
+ * Used by the command palette on open: ⌘K trips a single shot that
+ * materializes env coordinates for fuzzy match. fetchQuery (not
+ * prefetchQuery) is used so a single project failure rejects the whole
+ * Promise.all — prefetchQuery swallows errors into the cache and would
+ * leave the palette silently empty. The caller catches and surfaces a
+ * single banner instead of partial silence.
+ */
+export async function prefetchEnvs(qc: QueryClient, projects: readonly Project[]): Promise<void> {
+  await Promise.all(
+    projects.map((p) =>
+      qc.fetchQuery({
+        queryKey: queryKeys.envs(p.name),
+        queryFn: ({ signal }) => listEnvs(p.name, signal),
+      }),
+    ),
+  );
+}
+
+/**
+ * Warm the secrets list for the active (project, env) pair only.
+ *
+ * The palette intentionally does NOT prefetch N×M secret lists — that
+ * would balloon to hundreds of round-trips on a populated tenant. Cross-
+ * env key search is backlog 8 (server-side index). Here we only widen
+ * the currently visible env so a key the operator just saw becomes
+ * palette-searchable without typing the env first.
+ */
+export async function prefetchSecrets(
+  qc: QueryClient,
+  project: string,
+  env: string,
+): Promise<void> {
+  await qc.fetchQuery({
+    queryKey: queryKeys.secrets(project, env),
+    queryFn: ({ signal }) => listSecrets(project, env, signal),
+  });
 }
 
 export async function listAudit(filter: AuditFilter, signal?: AbortSignal): Promise<AuditPage> {

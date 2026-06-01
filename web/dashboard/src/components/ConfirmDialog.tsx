@@ -8,7 +8,21 @@ import { AlertDialog, Button, Flex } from '@radix-ui/themes';
  * errors back to the parent via the returned promise. The dialog stays
  * open during the in-flight state so the operator sees the spinner and
  * a thrown error doesn't accidentally dismiss it.
+ *
+ * `intent` carries semantic meaning, not a color name. DESIGN.md ties the
+ * semantic palette to specific Radix colors (danger=red, warning=amber),
+ * so the mapping lives in one place here; callers never name a hue. The
+ * earlier `color?: 'red' | 'amber' | 'indigo'` prop leaked a third
+ * non-semantic option that had no place in the monochrome system — see
+ * /impeccable critique 2026-06-01.
  */
+
+type ConfirmIntent = 'danger' | 'warning';
+
+const INTENT_COLOR: Record<ConfirmIntent, 'red' | 'amber'> = {
+  danger: 'red',
+  warning: 'amber',
+};
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -17,7 +31,7 @@ interface ConfirmDialogProps {
   description: ReactNode;
   confirmLabel?: string;
   cancelLabel?: string;
-  color?: 'red' | 'amber' | 'indigo';
+  intent?: ConfirmIntent;
   onConfirm: () => Promise<void> | void;
 }
 
@@ -28,7 +42,7 @@ export function ConfirmDialog({
   description,
   confirmLabel = '확인',
   cancelLabel = '취소',
-  color = 'red',
+  intent = 'danger',
   onConfirm,
 }: ConfirmDialogProps) {
   const [busy, setBusy] = useState(false);
@@ -61,7 +75,7 @@ export function ConfirmDialog({
               {cancelLabel}
             </Button>
           </AlertDialog.Cancel>
-          <Button color={color} onClick={handleConfirm} disabled={busy}>
+          <Button color={INTENT_COLOR[intent]} onClick={handleConfirm} disabled={busy}>
             {busy ? '처리 중…' : confirmLabel}
           </Button>
         </Flex>

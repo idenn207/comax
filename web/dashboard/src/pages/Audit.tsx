@@ -1,21 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import {
-  Box,
-  Button,
-  Callout,
-  Card,
-  Flex,
-  Heading,
-  Table,
-  Text,
-  TextField,
-} from '@radix-ui/themes';
+import { Box, Button, Callout, Card, Flex, Table, Text, TextField } from '@radix-ui/themes';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 
 import { ApiError } from '../lib/api';
 import { listAudit, queryKeys, type AuditFilter } from '../lib/queries';
 import { AppShell } from '../components/AppShell';
+import { PageHeader } from '../components/PageHeader';
 
 const PAGE_LIMIT = 50;
 
@@ -93,28 +84,22 @@ export function AuditPage({ filter }: AuditPageProps) {
   }
 
   return (
-    <AppShell
-      crumbs={[{ label: '감사 로그' }]}
-      actions={
-        <Button variant="soft" color="gray" onClick={onReset} disabled={!hasFilter}>
-          필터 초기화
-        </Button>
-      }
-    >
-      <Box>
-        <Heading size="6" mb="1">
-          감사 로그
-        </Heading>
-        <Text color="gray" size="2">
-          모든 변경 이벤트가 최신순으로 정렬됩니다. 필터는 URL에 저장되어 공유 가능합니다.
-        </Text>
-      </Box>
+    <AppShell active="audit" crumbs={[{ label: '감사 로그' }]}>
+      <PageHeader
+        title="감사 로그"
+        eyebrow={hasFilter ? '필터 적용됨' : undefined}
+        actions={
+          <Button variant="soft" color="gray" onClick={onReset} disabled={!hasFilter}>
+            필터 초기화
+          </Button>
+        }
+      />
 
       <Card variant="surface" asChild>
         <form onSubmit={onSubmit} aria-label="감사 로그 필터">
           <Flex direction="column" gap="3" p="3">
             <Flex gap="3" wrap="wrap">
-              <Box style={{ minWidth: 180, flex: '1 1 180px' }}>
+              <Box className="min-w-[180px] flex-[1_1_180px]">
                 <Text as="label" size="1" color="gray" htmlFor="audit-project">
                   프로젝트
                 </Text>
@@ -125,7 +110,7 @@ export function AuditPage({ filter }: AuditPageProps) {
                   onChange={(e) => setProjectInput(e.target.value)}
                 />
               </Box>
-              <Box style={{ minWidth: 180, flex: '1 1 180px' }}>
+              <Box className="min-w-[180px] flex-[1_1_180px]">
                 <Text as="label" size="1" color="gray" htmlFor="audit-env">
                   환경
                 </Text>
@@ -136,7 +121,7 @@ export function AuditPage({ filter }: AuditPageProps) {
                   onChange={(e) => setEnvInput(e.target.value)}
                 />
               </Box>
-              <Box style={{ minWidth: 180, flex: '1 1 180px' }}>
+              <Box className="min-w-[180px] flex-[1_1_180px]">
                 <Text as="label" size="1" color="gray" htmlFor="audit-action">
                   액션
                 </Text>
@@ -147,7 +132,7 @@ export function AuditPage({ filter }: AuditPageProps) {
                   onChange={(e) => setActionInput(e.target.value)}
                 />
               </Box>
-              <Box style={{ minWidth: 180, flex: '1 1 180px' }}>
+              <Box className="min-w-[180px] flex-[1_1_180px]">
                 <Text as="label" size="1" color="gray" htmlFor="audit-actor">
                   토큰 ID
                 </Text>
@@ -198,7 +183,7 @@ export function AuditPage({ filter }: AuditPageProps) {
       {!query.isLoading && entries.length === 0 ? (
         <Card variant="surface">
           <Flex direction="column" gap="1" p="4" align="start">
-            <Heading size="3">조회된 이벤트가 없습니다</Heading>
+            <h2 className="text-lg font-semibold tracking-tight m-0">조회된 이벤트가 없습니다</h2>
             <Text color="gray" size="2">
               {hasFilter
                 ? '필터 조건과 일치하는 이벤트가 없습니다. 필터를 조정해 보세요.'
@@ -229,22 +214,12 @@ export function AuditPage({ filter }: AuditPageProps) {
                     </Text>
                   </Table.Cell>
                   <Table.Cell>
-                    <Text
-                      size="2"
-                      style={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                      }}
-                    >
+                    <Text size="2" className="mono">
                       {entry.action}
                     </Text>
                   </Table.Cell>
                   <Table.Cell>
-                    <Text
-                      size="2"
-                      style={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                      }}
-                    >
+                    <Text size="2" className="mono">
                       {entry.target}
                     </Text>
                   </Table.Cell>
@@ -254,14 +229,7 @@ export function AuditPage({ filter }: AuditPageProps) {
                     </Text>
                   </Table.Cell>
                   <Table.Cell>
-                    <Text
-                      size="1"
-                      color="gray"
-                      style={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
-                        wordBreak: 'break-all',
-                      }}
-                    >
+                    <Text size="1" color="gray" className="mono break-all">
                       {entry.metadata ?? ''}
                     </Text>
                   </Table.Cell>

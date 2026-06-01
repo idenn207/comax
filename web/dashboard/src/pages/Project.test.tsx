@@ -13,7 +13,13 @@ vi.mock('@tanstack/react-router', async () => {
     await vi.importActual<typeof import('@tanstack/react-router')>('@tanstack/react-router');
   return {
     ...actual,
-    useRouter: () => ({ navigate: navigateMock }),
+    useRouter: () => ({
+      navigate: navigateMock,
+      state: { matches: [] },
+      subscribe: () => () => {},
+    }),
+    useRouterState: <T,>({ select }: { select: (s: { matches: unknown[] }) => T }) =>
+      select({ matches: [] }),
     Link: ({ children, ...rest }: { children: React.ReactNode } & Record<string, unknown>) => (
       <a {...(rest as Record<string, unknown>)}>{children}</a>
     ),

@@ -19,12 +19,12 @@ test.describe('dashboard auth', () => {
     await page.getByLabel('서비스 토큰').fill(token!);
     await page.getByRole('button', { name: '로그인' }).click();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('heading', { name: 'Comax Secrets' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '프로젝트', exact: true })).toBeVisible();
 
     // ── Refresh persists session ─────────────────────────────────────
     await page.reload();
     await expect(page).toHaveURL(/\/$/);
-    await expect(page.getByRole('heading', { name: 'Comax Secrets' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '프로젝트', exact: true })).toBeVisible();
 
     // ── Logout flushes cookie + CSRF ─────────────────────────────────
     await page.getByRole('button', { name: '로그아웃' }).click();
