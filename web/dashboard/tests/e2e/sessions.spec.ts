@@ -16,6 +16,17 @@ test.describe('dashboard sessions', () => {
   test('list shows current + second session, revoke + axe', async ({ browser, page }) => {
     await loginWithBootstrap(page);
 
+    // Wipe any sessions accumulated by prior tests in the same e2e run
+    // (a11y.spec calls loginWithBootstrap per test against the same
+    // actor + server, so without this the row count is non-deterministic).
+    const listResp = await page.request.get('/api/v1/dashboard/sessions');
+    const listed = (await listResp.json()).data as Array<{ id: number; is_current: boolean }>;
+    for (const s of listed) {
+      if (!s.is_current) {
+        await page.request.delete(`/api/v1/dashboard/sessions/${s.id}`);
+      }
+    }
+
     const token = process.env.DASHBOARD_TOKEN;
     if (!token) throw new Error('DASHBOARD_TOKEN missing — global-setup did not run');
 
