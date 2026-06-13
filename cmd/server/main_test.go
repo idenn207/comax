@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"io"
 	"log/slog"
@@ -350,6 +351,108 @@ func TestEnsureDataDir_CreatesParent(t *testing.T) {
 func TestEnsureDataDir_NoopForRelativeDot(t *testing.T) {
 	if err := ensureDataDir("x.db"); err != nil {
 		t.Errorf("ensureDataDir on bare path returned %v; want nil", err)
+	}
+}
+
+func TestRunPruneSweeper_DeletesExpiredOnTick(t *testing.T) {
+	db, err := store.Open(filepath.Join(t.TempDir(), "p.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := store.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+
+	// Seed one expired session — TTL=-time.Hour places expires_at an
+	// hour in the past, which the sweeper's cutoff = time.Now() catches
+	// immediately.
+	tokHash := sha256.Sum256([]byte("bearer:prune"))
+	tok, err := store.NewTokenRepo(db).Create(context.Background(), "prune", tokHash[:])
+	if err != nil {
+		t.Fatalf("token create: %v", err)
+	}
+	sh := sha256.Sum256([]byte("session:prune"))
+	ch := sha256.Sum256([]byte("csrf:prune"))
+	repo := store.NewSessionRepo(db)
+	if _, err := repo.Create(context.Background(), store.SessionCreateInput{
+		TokenID:     tok.ID,
+		SessionHash: sh[:],
+		CSRFHash:    ch[:],
+		TTL:         -time.Hour,
+	}); err != nil {
+		t.Fatalf("session create: %v", err)
+	}
+
+	var pre int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM dashboard_sessions`).Scan(&pre); err != nil {
+		t.Fatalf("pre count: %v", err)
+	}
+	if pre != 1 {
+		t.Fatalf("pre count = %d; want 1", pre)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	done := make(chan struct{})
+	go func() {
+		runPruneSweeper(ctx, repo, 10*time.Millisecond, discardLogger())
+		close(done)
+	}()
+
+	// Spin until the row is gone, capped at 2 seconds so a stuck sweeper
+	// produces a real test failure instead of hanging the suite.
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		var n int
+		if err := db.QueryRow(`SELECT COUNT(*) FROM dashboard_sessions`).Scan(&n); err != nil {
+			t.Fatalf("count during wait: %v", err)
+		}
+		if n == 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	var post int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM dashboard_sessions`).Scan(&post); err != nil {
+		t.Fatalf("post count: %v", err)
+	}
+	if post != 0 {
+		t.Errorf("post count = %d; want 0 (expired row should have been pruned)", post)
+	}
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Error("sweeper did not stop within 1s after cancel")
+	}
+}
+
+func TestRunPruneSweeper_StopsOnContextCancel(t *testing.T) {
+	db, err := store.Open(filepath.Join(t.TempDir(), "c.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	if err := store.Migrate(context.Background(), db); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+
+	// Long interval so the test never fires a real tick; the sweeper
+	// has to exit purely on the ctx.Done() arm of the select.
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		runPruneSweeper(ctx, store.NewSessionRepo(db), time.Hour, discardLogger())
+		close(done)
+	}()
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Error("sweeper did not stop within 1s after cancel")
 	}
 }
 

@@ -146,6 +146,12 @@ func run(args []string, stdout, stderr io.Writer) error {
 		errCh <- nil
 	}()
 
+	// Hourly sweeper. cutoff = time.Now() (no grace) so a row becomes
+	// eligible for deletion the moment expires_at slips into the past.
+	// threat-model.md promises "expired/revoked rows are pruned hourly";
+	// that promise is satisfied by *this* goroutine.
+	go runPruneSweeper(ctx, store.NewSessionRepo(db), time.Hour, logger)
+
 	select {
 	case <-ctx.Done():
 		logger.Info("shutdown signal received")
@@ -304,6 +310,36 @@ func ensureDataDir(dbPath string) error {
 		return fmt.Errorf("create data dir: %w", err)
 	}
 	return nil
+}
+
+// runPruneSweeper drives SessionRepo.Prune on a fixed interval until ctx
+// is cancelled. cutoff is always time.Now() — the threat model promises
+// "1-hour pruning of expired/revoked rows", and any grace window past
+// expires_at would silently weaken that promise.
+//
+// Extracted out of run() so tests can drive it at millisecond intervals
+// against an in-memory repo without booting the HTTP listener.
+func runPruneSweeper(ctx context.Context, repo *store.SessionRepo, interval time.Duration, logger *slog.Logger) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			n, err := repo.Prune(ctx, time.Now())
+			if err != nil {
+				// Don't tear the process down for a transient SQLite hiccup —
+				// the next tick will retry. A persistent error will spam the
+				// log at hourly cadence which is its own signal.
+				logger.Warn("session prune failed", slog.String("err", err.Error()))
+				continue
+			}
+			if n > 0 {
+				logger.Info("sessions pruned", slog.Int64("rows", n))
+			}
+		}
+	}
 }
 
 // autoBootstrap mints the first admin token if the database is empty

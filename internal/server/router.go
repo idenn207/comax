@@ -22,6 +22,8 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("POST /api/v1/dashboard/session", s.handleCreateDashboardSession)
 	mux.HandleFunc("DELETE /api/v1/dashboard/session", s.handleRevokeDashboardSession)
+	mux.HandleFunc("GET /api/v1/dashboard/sessions", s.handleListDashboardSessions)
+	mux.HandleFunc("DELETE /api/v1/dashboard/sessions/{id}", s.handleRevokeDashboardSessionByID)
 
 	mux.HandleFunc("GET /api/v1/projects", s.handleListProjects)
 	mux.HandleFunc("POST /api/v1/projects", s.handleCreateProject)

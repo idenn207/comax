@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/idenn207/comax-secrets/internal/auth"
@@ -200,6 +201,122 @@ func clearSessionCookie(w http.ResponseWriter) {
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
+}
+
+// sessionListItem is the per-row JSON shape for GET /dashboard/sessions.
+// Hashes (session_hash, csrf_hash) are deliberately omitted: the operator
+// never needs them and exposing them would weaken the "plaintext only
+// leaves the server once" invariant.
+//
+// IsCurrent flags the session whose cookie carried this request so the
+// UI can disable revoke on it (revoking the active session would land
+// the operator on /login mid-action, which is a poor pattern even if
+// technically idempotent on the backend).
+type sessionListItem struct {
+	ID        int64     `json:"id"`
+	UserAgent string    `json:"user_agent"`
+	IPPrefix  string    `json:"ip_prefix"`
+	CreatedAt time.Time `json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
+	IsCurrent bool      `json:"is_current"`
+}
+
+// handleListDashboardSessions returns the actor token's own live sessions.
+// Cross-token discovery is impossible by design — the WHERE clause in
+// SessionRepo.ListByTokenID binds the actor's token id and there is no
+// admin-scope variant of this endpoint.
+//
+// The endpoint is GET so the cookie + bearer arms of authMiddleware both
+// authenticate it; CSRF only kicks in on mutating methods.
+func (s *Server) handleListDashboardSessions(w http.ResponseWriter, r *http.Request) {
+	actor, ok := auth.FromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized", "missing actor", s.logger)
+		return
+	}
+	repo := store.NewSessionRepo(s.db)
+	sessions, err := repo.ListByTokenID(r.Context(), actor.ID)
+	if err != nil {
+		s.logger.Error("sessions list", slog.String("err", err.Error()))
+		writeError(w, http.StatusInternalServerError, "internal", "internal server error", s.logger)
+		return
+	}
+
+	// Resolve the request's own session id (if any) so IsCurrent lights
+	// up the row representing this very request. A failed lookup leaves
+	// currentID at zero and silently produces is_current=false for all
+	// rows — that's the right shape for bearer-arm callers like the CLI
+	// which have no cookie to begin with.
+	var currentID int64
+	if cookie, err := r.Cookie(sessionCookieName); err == nil && cookie.Value != "" {
+		if cur, err := repo.ByHash(r.Context(), auth.HashToken(cookie.Value)); err == nil {
+			currentID = cur.ID
+		}
+	}
+
+	out := make([]sessionListItem, 0, len(sessions))
+	for _, sess := range sessions {
+		out = append(out, sessionListItem{
+			ID:        sess.ID,
+			UserAgent: sess.UserAgent,
+			IPPrefix:  sess.IPPrefix,
+			CreatedAt: sess.CreatedAt,
+			ExpiresAt: sess.ExpiresAt,
+			IsCurrent: sess.ID == currentID,
+		})
+	}
+	writeOK(w, http.StatusOK, out, s.logger)
+}
+
+// handleRevokeDashboardSessionByID revokes a single session row by id,
+// scoped to the actor's own token. Always 204 (or 4xx for bad input);
+// the body is never used to distinguish "you don't own this id" from
+// "no such id" from "already revoked" — see SessionRepo.RevokeByID-
+// AndTokenID for why those three cases collapse into one response.
+//
+// An audit row is appended only when affected == 1 so that probes of
+// foreign / unknown ids leave no forensic trail the prober could later
+// read back. The middleware enforces CSRF on this DELETE automatically.
+func (s *Server) handleRevokeDashboardSessionByID(w http.ResponseWriter, r *http.Request) {
+	actor, ok := auth.FromContext(r.Context())
+	if !ok {
+		writeError(w, http.StatusUnauthorized, "unauthorized", "missing actor", s.logger)
+		return
+	}
+	targetID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || targetID <= 0 {
+		writeError(w, http.StatusBadRequest, "bad_request", "invalid session id", s.logger)
+		return
+	}
+
+	tx, err := s.db.BeginTx(r.Context(), nil)
+	if err != nil {
+		s.logger.Error("revoke by id: begin tx", slog.String("err", err.Error()))
+		writeError(w, http.StatusInternalServerError, "internal", "internal server error", s.logger)
+		return
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	n, err := store.NewSessionRepo(tx).RevokeByIDAndTokenID(r.Context(), targetID, actor.ID)
+	if err != nil {
+		s.logger.Error("revoke by id: store", slog.String("err", err.Error()))
+		writeError(w, http.StatusInternalServerError, "internal", "internal server error", s.logger)
+		return
+	}
+	if n > 0 {
+		target := fmt.Sprintf("token_id=%d session_id=%d", actor.ID, targetID)
+		if err := appendAuditForToken(r, tx, actor.ID, "session.revoke_by_id", target); err != nil {
+			s.logger.Error("revoke by id: audit", slog.String("err", err.Error()))
+			writeError(w, http.StatusInternalServerError, "internal", "audit failed", s.logger)
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		s.logger.Error("revoke by id: commit", slog.String("err", err.Error()))
+		writeError(w, http.StatusInternalServerError, "internal", "commit failed", s.logger)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // truncateUserAgent caps the persisted UA at a reasonable length so a
