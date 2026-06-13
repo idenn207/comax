@@ -3,30 +3,23 @@
 # ----- dashboard builder -----------------------------------------------
 # Build the React/Vite SPA first so the Go builder can embed it via
 # //go:embed. Node 22 LTS matches CI (.github/workflows/ci.yml) and the
-# packageManager field in web/dashboard/package.json.
+# engines.node field in web/dashboard/package.json. Node 22 LTS ships
+# npm 10, which is what we use as the package manager.
 #
 # vite.config.ts writes its output to ../../internal/server/dashboard/dist
 # (an absolute path resolved at build time), so the staged layout under
 # /src/web/dashboard reproduces that relationship and the Go builder
 # below picks up /src/internal/server/dashboard/dist unchanged.
 FROM node:22-alpine AS dashboard-builder
-# CI=true keeps pnpm from prompting on `pnpm build` when it re-validates
-# node_modules (CI environments are the canonical no-TTY case).
-#
-# PNPM_CONFIG_DANGEROUSLY_ALLOW_ALL_BUILDS is the env-var form of the
-# `--config.dangerouslyAllowAllBuilds=true` flag — it applies to every
-# pnpm invocation in this stage, including the implicit `pnpm install`
-# pnpm triggers when it re-checks deps before running `pnpm build`.
-# This is what unblocks esbuild's native postinstall under pnpm 11.5.
-ENV CI=true \
-    PNPM_CONFIG_DANGEROUSLY_ALLOW_ALL_BUILDS=true
-RUN corepack enable && corepack prepare pnpm@11.5.0 --activate
+# CI=true keeps npm from emitting progress/spinner output in the
+# no-TTY container build context.
+ENV CI=true
 WORKDIR /src/web/dashboard
-COPY web/dashboard/package.json web/dashboard/pnpm-lock.yaml ./
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+COPY web/dashboard/package.json web/dashboard/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 COPY web/dashboard ./
-RUN mkdir -p /src/internal/server/dashboard/dist && pnpm build
+RUN mkdir -p /src/internal/server/dashboard/dist && npm run build
 
 # ----- go builder -------------------------------------------------------
 # Pinned Go 1.25 because modernc.org/sqlite v1.51 needs it. CGO is off so

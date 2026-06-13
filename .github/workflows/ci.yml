@@ -16,11 +16,9 @@ env:
   # is >=80% per package; we start at 70% to leave headroom while the
   # server/CLI packages are still scaffolds, and ratchet up in later tasks.
   COVER_FLOOR: "70"
-  # Pin the dashboard Node + pnpm versions in lockstep with
-  # web/dashboard/package.json (packageManager + engines fields).
-  # pnpm >=11 imports node:sqlite, which requires Node 22.13+.
+  # Pin the dashboard Node version in lockstep with
+  # web/dashboard/package.json (engines field). Node 22 LTS ships npm 10.
   NODE_VERSION: "22"
-  PNPM_VERSION: "11"
 
 jobs:
   test:
@@ -92,25 +90,22 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: web/dashboard/pnpm-lock.yaml
+          cache: npm
+          cache-dependency-path: web/dashboard/package-lock.json
 
       # Vite output target is internal/server/dashboard/dist (see
       # web/dashboard/vite.config.ts), which is what the //go:embed
       # all:dist directive picks up under -tags embed_dashboard.
       - name: install dashboard deps
         working-directory: web/dashboard
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: vite build (populates internal/server/dashboard/dist)
         working-directory: web/dashboard
-        run: pnpm build
+        run: npm run build
 
       # Plan task 14 regression: every cross-compile target must still
       # produce a working binary with the SPA embedded. Strip symbols
@@ -159,29 +154,26 @@ jobs:
         working-directory: web/dashboard
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: web/dashboard/pnpm-lock.yaml
+          cache: npm
+          cache-dependency-path: web/dashboard/package-lock.json
 
       - name: install
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: lint
-        run: pnpm lint
+        run: npm run lint
 
       - name: typecheck
-        run: pnpm typecheck
+        run: npm run typecheck
 
       - name: unit tests
-        run: pnpm test
+        run: npm test
 
       - name: vite build
-        run: pnpm build
+        run: npm run build
 
       # Plan task 13 — fail the build if the dashboard payload regresses
       # past the operator-friendly budget. Both numbers are gzip sizes
@@ -227,22 +219,19 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: pnpm
-          cache-dependency-path: web/dashboard/pnpm-lock.yaml
+          cache: npm
+          cache-dependency-path: web/dashboard/package-lock.json
 
       - name: install dashboard deps
         working-directory: web/dashboard
-        run: pnpm install --frozen-lockfile
+        run: npm ci
 
       - name: vite build (populates internal/server/dashboard/dist)
         working-directory: web/dashboard
-        run: pnpm build
+        run: npm run build
 
       - name: build secret-server (with embed)
         env:
@@ -251,11 +240,11 @@ jobs:
 
       - name: install playwright browsers
         working-directory: web/dashboard
-        run: pnpm exec playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium
 
       - name: run playwright + axe
         working-directory: web/dashboard
-        run: pnpm test:e2e
+        run: npm run test:e2e
 
       - name: upload playwright report
         if: failure()

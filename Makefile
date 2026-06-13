@@ -3,7 +3,7 @@
 # Targets:
 #   build               Compile server (with embedded dashboard) + CLI to ./bin
 #   build-server-nodash Server-only build, no dashboard, no Node toolchain required
-#   dashboard           pnpm install + vite build, staged into the Go embed dir
+#   dashboard           npm ci + vite build, staged into the Go embed dir
 #   dashboard-clean     Remove the staged SPA bundle (keeps .gitkeep)
 #   dev                 Run secret-server + Vite dev server side-by-side
 #   dev-api             secret-server only (no SPA, /api routes still respond)
@@ -19,14 +19,14 @@
 # Notes:
 #   - This Makefile assumes a POSIX-ish shell. Windows users should run it
 #     under WSL, Git Bash, or MSYS2 (CI uses ubuntu-latest).
-#   - `build` requires Node + pnpm because it embeds the dashboard. Use
+#   - `build` requires Node + npm because it embeds the dashboard. Use
 #     `build-server-nodash` if you only need the API surface.
 #   - Contributors without Node can run `go test ./...` and `go build ./...`
 #     directly; the //go:embed directive sits behind a build tag
 #     (`embed_dashboard`) that is off by default.
 
 GO            ?= go
-PNPM          ?= pnpm
+NPM           ?= npm
 PKG           := github.com/idenn207/comax-secrets
 BIN_DIR       := bin
 COVER_OUT     := coverage.out
@@ -57,8 +57,8 @@ build-server-nodash:
 # Build the SPA. Vite is configured to write directly into the Go embed
 # dir (see web/dashboard/vite.config.ts) so no extra copy step is needed.
 dashboard:
-	cd $(DASHBOARD_DIR) && $(PNPM) install --frozen-lockfile --silent
-	cd $(DASHBOARD_DIR) && $(PNPM) build
+	cd $(DASHBOARD_DIR) && $(NPM) ci --silent
+	cd $(DASHBOARD_DIR) && $(NPM) run build
 
 # Wipe the staged SPA bundle but preserve the .gitkeep sentinel so the
 # //go:embed all:dist pattern still resolves in a clean tree.
@@ -70,13 +70,13 @@ dashboard-clean:
 dev:
 	@trap 'kill 0' SIGINT SIGTERM; \
 	$(GO) run ./cmd/server & \
-	cd $(DASHBOARD_DIR) && $(PNPM) dev
+	cd $(DASHBOARD_DIR) && $(NPM) run dev
 
 dev-api:
 	$(GO) run ./cmd/server
 
 dev-web:
-	cd $(DASHBOARD_DIR) && $(PNPM) dev
+	cd $(DASHBOARD_DIR) && $(NPM) run dev
 
 test:
 	$(GO) test ./internal/... -race -coverprofile=$(COVER_OUT)

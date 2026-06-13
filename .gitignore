@@ -63,7 +63,7 @@ deploy/compose/keys/
 /internal/server/dashboard/dist/*
 !/internal/server/dashboard/dist/.gitkeep
 
-# Frontend toolchain artefacts (pnpm/Vite/Playwright).
+# Frontend toolchain artefacts (npm/Vite/Playwright).
 /web/dashboard/node_modules/
 /web/dashboard/dist/
 /web/dashboard/.vite/
