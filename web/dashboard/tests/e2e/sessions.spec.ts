@@ -14,21 +14,28 @@ import { checkA11y, loginWithBootstrap } from './helpers/axe';
 
 test.describe('dashboard sessions', () => {
   test('list shows current + second session, revoke + axe', async ({ browser, page }) => {
-    await loginWithBootstrap(page);
+    const token = process.env.DASHBOARD_TOKEN;
+    if (!token) throw new Error('DASHBOARD_TOKEN missing — global-setup did not run');
 
     // Wipe any sessions accumulated by prior tests in the same e2e run
     // (a11y.spec calls loginWithBootstrap per test against the same
     // actor + server, so without this the row count is non-deterministic).
-    const listResp = await page.request.get('/api/v1/dashboard/sessions');
-    const listed = (await listResp.json()).data as Array<{ id: number; is_current: boolean }>;
+    //
+    // Use the Bearer arm: it bypasses CSRF (see middleware.go), and we
+    // must run cleanup BEFORE loginWithBootstrap so we don't delete the
+    // cookie session we're about to set up.
+    const authHeaders = { Authorization: `Bearer ${token}` };
+    const listResp = await page.request.get('/api/v1/dashboard/sessions', {
+      headers: authHeaders,
+    });
+    const listed = (await listResp.json()).data as Array<{ id: number }>;
     for (const s of listed) {
-      if (!s.is_current) {
-        await page.request.delete(`/api/v1/dashboard/sessions/${s.id}`);
-      }
+      await page.request.delete(`/api/v1/dashboard/sessions/${s.id}`, {
+        headers: authHeaders,
+      });
     }
 
-    const token = process.env.DASHBOARD_TOKEN;
-    if (!token) throw new Error('DASHBOARD_TOKEN missing — global-setup did not run');
+    await loginWithBootstrap(page);
 
     const secondaryCtx = await browser.newContext();
     const secondaryResp = await secondaryCtx.request.post('/api/v1/dashboard/session', {
