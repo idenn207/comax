@@ -1,0 +1,5 @@
+# Not a workspace; this file exists because pnpm 10+ requires explicit
+# opt-in for transitive postinstall scripts. esbuild ships its native
+# binary via postinstall and Vite refuses to build without it.
+onlyBuiltDependencies:
+  - esbuild
