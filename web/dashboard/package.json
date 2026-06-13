@@ -8,6 +8,9 @@
   "engines": {
     "node": ">=22"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build && tsc -p tsconfig.app.json --noEmit",
