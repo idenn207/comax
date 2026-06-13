@@ -91,3 +91,24 @@ export interface AuditPage {
   entries: AuditEntry[];
   meta: AuditMeta;
 }
+
+/**
+ * One row of the /settings/sessions table.
+ *
+ * Mirrors the server's sessionListItem shape (handlers_sessions.go).
+ * Hashes are deliberately omitted; the operator never needs them and
+ * exposing them would weaken the "plaintext leaves the server once"
+ * invariant.
+ *
+ * is_current flags the session whose cookie carried *this* request, so
+ * the UI can disable revoke on it. Revoking the active session would
+ * land the operator on /login mid-action — see Design Critique P1 #2.
+ */
+export interface Session {
+  id: number;
+  user_agent: string;
+  ip_prefix: string;
+  created_at: string;
+  expires_at: string;
+  is_current: boolean;
+}

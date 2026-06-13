@@ -40,7 +40,7 @@ export interface Crumb {
   params?: Record<string, string>;
 }
 
-export type ActiveSection = 'projects' | 'audit';
+export type ActiveSection = 'projects' | 'audit' | 'sessions';
 
 interface AppShellProps {
   active?: ActiveSection;
@@ -129,6 +129,14 @@ export function AppShell({ active, crumbs, children }: AppShellProps) {
             <SidebarLink to="/audit" active={active === 'audit'}>
               <IconAudit />
               <span>감사 로그</span>
+            </SidebarLink>
+          </div>
+
+          <div className="nav-section" role="list">
+            <div className="nav-section-label">설정</div>
+            <SidebarLink to="/settings/sessions" active={active === 'sessions'}>
+              <IconSessions />
+              <span>세션</span>
             </SidebarLink>
           </div>
 
@@ -260,6 +268,25 @@ function IconAudit() {
           strokeWidth="1.5"
           strokeLinecap="round"
         />
+      </svg>
+    </span>
+  );
+}
+
+function IconSessions() {
+  return (
+    <span className="nav-link-icon" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <rect
+          x="3.5"
+          y="5"
+          width="17"
+          height="11"
+          rx="2"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <path d="M8 20h8M12 16v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     </span>
   );

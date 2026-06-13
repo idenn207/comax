@@ -15,6 +15,7 @@ import { EnvSecretsPage } from './pages/EnvSecrets';
 import { LoginPage } from './pages/Login';
 import { ProjectPage } from './pages/Project';
 import { ProjectsPage } from './pages/Projects';
+import { SessionsPage } from './pages/Sessions';
 
 /**
  * Code-based router. Routes:
@@ -117,6 +118,13 @@ const loginRoute = createRoute({
   component: LoginPage,
 });
 
+const settingsSessionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings/sessions',
+  beforeLoad: requireAuth,
+  component: SessionsPage,
+});
+
 // eslint-disable-next-line react-refresh/only-export-components
 function ProjectRouteComponent() {
   const { project } = useParams({ from: '/projects/$project' });
@@ -149,6 +157,7 @@ const routeTree = rootRoute.addChildren([
   envDiffRoute,
   auditRoute,
   loginRoute,
+  settingsSessionsRoute,
 ]);
 
 export const router = createRouter({
