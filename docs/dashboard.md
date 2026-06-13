@@ -78,6 +78,24 @@ A short version of [threat-model.md § Browser sessions](threat-model.md#browser
 - **No multi-tenant model**: a single privilege level; any logged-in
   operator can do anything the underlying token can do.
 
+## Managing sessions
+
+`/settings/sessions` lists every live dashboard session your service
+token has issued — yours included. Use it to revoke a session from a
+device you no longer trust without rotating the underlying bearer.
+
+Columns: device (parsed UA), IP prefix (the `/24` truncated remote
+address the cookie was minted from), and Created. The row carrying
+the cookie that authenticated this request is flagged "현재 세션" and
+its 회수 button is disabled — to log out, use the sidebar's 로그아웃.
+
+Revoke is **only a recall mechanism**. If the cookie was already
+exfiltrated, every read the attacker performed before revocation is
+unrecoverable. When in doubt, revoke the service token itself (it
+invalidates every session that token issued, all at once). See the
+"Honest limits" subsection of [threat-model.md](threat-model.md) for
+the full boundary.
+
 ## Build artefacts and budgets
 
 | Asset | Budget | Source |
