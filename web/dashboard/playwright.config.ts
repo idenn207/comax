@@ -10,7 +10,7 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * Prerequisite: `make build` (or equivalent) must have produced
  * `bin/secret-server` at the worktree root.
- * One-time browser install: `pnpm exec playwright install chromium`.
+ * One-time browser install: `npx playwright install chromium`.
  */
 export default defineConfig({
   testDir: './tests/e2e',

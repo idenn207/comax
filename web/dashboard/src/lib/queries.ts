@@ -25,6 +25,7 @@ import type {
   ResolvedSecret,
   SecretVersionDetail,
   SecretVersionListEntry,
+  Session,
 } from './types';
 
 const encode = encodeURIComponent;
@@ -58,6 +59,7 @@ export const queryKeys = {
       filter.before ?? 0,
       filter.limit ?? 0,
     ] as const,
+  sessions: () => ['sessions'] as const,
 } as const;
 
 export async function listProjects(signal?: AbortSignal): Promise<Project[]> {
@@ -203,6 +205,24 @@ export async function prefetchSecrets(
     queryKey: queryKeys.secrets(project, env),
     queryFn: ({ signal }) => listSecrets(project, env, signal),
   });
+}
+
+export async function listSessions(signal?: AbortSignal): Promise<Session[]> {
+  return apiFetch<Session[]>('/api/v1/dashboard/sessions', { signal });
+}
+
+/**
+ * Revoke a single session by id. Server returns 204 in all of:
+ *   - the id belongs to the actor (success path, audit-logged),
+ *   - the id belongs to a different token (silent no-op, no audit row),
+ *   - the id does not exist (silent no-op, no audit row),
+ *   - the row is already revoked (silent no-op).
+ *
+ * The single 204 response keeps cross-token id probes from producing an
+ * existence oracle — see SessionRepo.RevokeByIDAndTokenID.
+ */
+export async function revokeSession(id: number): Promise<void> {
+  await apiFetch<void>(`/api/v1/dashboard/sessions/${id}`, { method: 'DELETE' });
 }
 
 export async function listAudit(filter: AuditFilter, signal?: AbortSignal): Promise<AuditPage> {

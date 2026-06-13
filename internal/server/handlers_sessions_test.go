@@ -3,11 +3,14 @@ package server
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/idenn207/comax-secrets/internal/store"
 )
@@ -293,6 +296,200 @@ func TestDashboardSession_RevokeUnknownCookieIs204AndClears(t *testing.T) {
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("stale revoke status=%d; want 204", resp.StatusCode)
 	}
+}
+
+// ---- GET /api/v1/dashboard/sessions ----------------------------------
+
+func TestDashboardSessions_ListReturnsOnlyOwnTokenSessions(t *testing.T) {
+	ts := newTestServer(t)
+	ts.bootstrap(t)
+
+	// Two logins from the actor token. Each call mints a fresh server-
+	// side session; both rows are owned by the bootstrap token (id=1).
+	cookieA, csrfA := dashLogin(t, ts)
+	_, _ = dashLogin(t, ts)
+
+	// Seed a session owned by a *different* token. The list endpoint
+	// must not surface it under the actor's listing — that's the whole
+	// point of the token_id scope on ListByTokenID.
+	secondTok, err := store.NewTokenRepo(ts.db).Create(context.Background(),
+		"second", hashBearer("second"))
+	if err != nil {
+		t.Fatalf("seed second token: %v", err)
+	}
+	if _, err := store.NewSessionRepo(ts.db).Create(context.Background(),
+		store.SessionCreateInput{
+			TokenID:     secondTok.ID,
+			SessionHash: hashSeed("other-session"),
+			CSRFHash:    hashSeed("other-csrf"),
+			TTL:         time.Hour,
+		}); err != nil {
+		t.Fatalf("seed second session: %v", err)
+	}
+
+	status, body := doCookie(t, ts, http.MethodGet, "/api/v1/dashboard/sessions",
+		cookieA, csrfA, nil)
+	if status != http.StatusOK {
+		t.Fatalf("list status=%d body=%s", status, body)
+	}
+	var env Envelope
+	if err := json.Unmarshal(body, &env); err != nil {
+		t.Fatalf("decode envelope: %v", err)
+	}
+	rows, ok := env.Data.([]any)
+	if !ok {
+		t.Fatalf("data not array: %T", env.Data)
+	}
+	if len(rows) != 2 {
+		t.Fatalf("list returned %d rows; want 2 (no foreign-token rows)", len(rows))
+	}
+
+	// Exactly one row must be flagged is_current — the cookie used here.
+	var currents int
+	for _, r := range rows {
+		m := r.(map[string]any)
+		if cur, _ := m["is_current"].(bool); cur {
+			currents++
+		}
+	}
+	if currents != 1 {
+		t.Errorf("is_current flag count=%d; want 1", currents)
+	}
+}
+
+// ---- DELETE /api/v1/dashboard/sessions/{id} --------------------------
+
+func TestDashboardSessions_RevokeByIDOwnSessionWritesAudit(t *testing.T) {
+	ts := newTestServer(t)
+	ts.bootstrap(t)
+	cookie, csrf := dashLogin(t, ts)
+
+	// Mint a second session for the actor so revoking it doesn't kill
+	// the very cookie that authenticates the request.
+	other, err := store.NewSessionRepo(ts.db).Create(context.Background(),
+		store.SessionCreateInput{
+			TokenID:     1, // bootstrap token id
+			SessionHash: hashSeed("self-other-session"),
+			CSRFHash:    hashSeed("self-other-csrf"),
+			TTL:         time.Hour,
+		})
+	if err != nil {
+		t.Fatalf("seed own second session: %v", err)
+	}
+
+	status, body := doCookie(t, ts, http.MethodDelete,
+		fmt.Sprintf("/api/v1/dashboard/sessions/%d", other.ID), cookie, csrf, nil)
+	if status != http.StatusNoContent {
+		t.Fatalf("revoke own status=%d body=%s", status, body)
+	}
+
+	// Audit row recorded under action session.revoke_by_id, attributed
+	// to the actor's underlying token.
+	entries, err := store.NewAuditRepo(ts.db).List(context.Background(),
+		store.AuditFilter{Action: "session.revoke_by_id"}, 10)
+	if err != nil {
+		t.Fatalf("audit list: %v", err)
+	}
+	if len(entries) != 1 || entries[0].ActorToken == nil || *entries[0].ActorToken != 1 {
+		t.Errorf("audit rows=%+v; want exactly one with actor_token=1", entries)
+	}
+}
+
+func TestDashboardSessions_RevokeByIDCrossTokenSilentNoAudit(t *testing.T) {
+	ts := newTestServer(t)
+	ts.bootstrap(t)
+	cookie, csrf := dashLogin(t, ts)
+
+	// Foreign token + session.
+	foreignTok, err := store.NewTokenRepo(ts.db).Create(context.Background(),
+		"foreign", hashBearer("foreign"))
+	if err != nil {
+		t.Fatalf("seed foreign token: %v", err)
+	}
+	foreignSess, err := store.NewSessionRepo(ts.db).Create(context.Background(),
+		store.SessionCreateInput{
+			TokenID:     foreignTok.ID,
+			SessionHash: hashSeed("foreign-session"),
+			CSRFHash:    hashSeed("foreign-csrf"),
+			TTL:         time.Hour,
+		})
+	if err != nil {
+		t.Fatalf("seed foreign session: %v", err)
+	}
+
+	// Actor revokes foreign id → 204, indistinguishable from "unknown id".
+	status, body := doCookie(t, ts, http.MethodDelete,
+		fmt.Sprintf("/api/v1/dashboard/sessions/%d", foreignSess.ID), cookie, csrf, nil)
+	if status != http.StatusNoContent {
+		t.Fatalf("cross-token revoke status=%d body=%s", status, body)
+	}
+
+	// Foreign session row stays live.
+	survivor, err := store.NewSessionRepo(ts.db).ByHash(context.Background(),
+		hashSeed("foreign-session"))
+	if err != nil {
+		t.Fatalf("foreign session vanished: %v", err)
+	}
+	if survivor.RevokedAt != nil {
+		t.Errorf("cross-token attempt mutated foreign row: revoked_at=%v", *survivor.RevokedAt)
+	}
+
+	// No audit row — probing foreign ids leaves no trail.
+	entries, err := store.NewAuditRepo(ts.db).List(context.Background(),
+		store.AuditFilter{Action: "session.revoke_by_id"}, 10)
+	if err != nil {
+		t.Fatalf("audit list: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("cross-token revoke wrote %d audit row(s); want 0", len(entries))
+	}
+}
+
+func TestDashboardSessions_RevokeByIDUnknownIs204NoAudit(t *testing.T) {
+	ts := newTestServer(t)
+	ts.bootstrap(t)
+	cookie, csrf := dashLogin(t, ts)
+
+	status, body := doCookie(t, ts, http.MethodDelete,
+		"/api/v1/dashboard/sessions/999999", cookie, csrf, nil)
+	if status != http.StatusNoContent {
+		t.Fatalf("unknown revoke status=%d body=%s", status, body)
+	}
+	entries, err := store.NewAuditRepo(ts.db).List(context.Background(),
+		store.AuditFilter{Action: "session.revoke_by_id"}, 10)
+	if err != nil {
+		t.Fatalf("audit list: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("unknown revoke wrote %d audit row(s); want 0", len(entries))
+	}
+}
+
+func TestDashboardSessions_RevokeByIDRequiresCSRF(t *testing.T) {
+	// CSRF middleware applies to all mutating methods on cookie-auth.
+	// This is a wiring regression test, not new logic.
+	ts := newTestServer(t)
+	ts.bootstrap(t)
+	cookie, _ := dashLogin(t, ts)
+
+	status, _ := doCookie(t, ts, http.MethodDelete,
+		"/api/v1/dashboard/sessions/1", cookie, "", nil)
+	if status != http.StatusForbidden {
+		t.Errorf("no-csrf revoke status=%d; want 403", status)
+	}
+}
+
+// hashSeed and hashBearer are deterministic SHA-256s used to seed test
+// rows directly through the store. The repo never inspects the bytes
+// beyond equality, so deterministic synthetic hashes are sufficient.
+func hashSeed(seed string) []byte {
+	h := sha256.Sum256([]byte("test-seed:" + seed))
+	return h[:]
+}
+
+func hashBearer(seed string) []byte {
+	h := sha256.Sum256([]byte("test-bearer:" + seed))
+	return h[:]
 }
 
 // ---- 401 envelope shape for missing-credential requests --------------

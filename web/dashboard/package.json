@@ -4,7 +4,6 @@
   "version": "0.1.0",
   "description": "Comax Secrets operator dashboard (Vite + React + TanStack). Built artefact is embedded into secret-server.",
   "type": "module",
-  "packageManager": "pnpm@11.5.0",
   "engines": {
     "node": ">=22"
   },

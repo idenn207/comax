@@ -146,6 +146,155 @@ func TestSessionRepo_CreateRejectsDuplicateHash(t *testing.T) {
 	}
 }
 
+func TestSessionRepo_ListByTokenIDIsolatesOwner(t *testing.T) {
+	db := newTestDB(t)
+	owner := mustSeedToken(t, db, "owner")
+	other := mustSeedToken(t, db, "other")
+	repo := NewSessionRepo(db)
+
+	for _, seed := range []string{"o-a", "o-b"} {
+		sh, ch := makeHashes(seed)
+		if _, err := repo.Create(context.Background(), SessionCreateInput{
+			TokenID: owner.ID, SessionHash: sh, CSRFHash: ch, TTL: time.Hour,
+		}); err != nil {
+			t.Fatalf("Create owner %s: %v", seed, err)
+		}
+	}
+	sh, ch := makeHashes("x-a")
+	if _, err := repo.Create(context.Background(), SessionCreateInput{
+		TokenID: other.ID, SessionHash: sh, CSRFHash: ch, TTL: time.Hour,
+	}); err != nil {
+		t.Fatalf("Create other: %v", err)
+	}
+
+	got, err := repo.ListByTokenID(context.Background(), owner.ID)
+	if err != nil {
+		t.Fatalf("ListByTokenID: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("len(got)=%d; want 2", len(got))
+	}
+	for _, s := range got {
+		if s.TokenID != owner.ID {
+			t.Errorf("foreign row leaked: token_id=%d session_id=%d", s.TokenID, s.ID)
+		}
+	}
+}
+
+func TestSessionRepo_ListByTokenIDExcludesRevokedAndExpired(t *testing.T) {
+	db := newTestDB(t)
+	tok := mustSeedToken(t, db, "dash")
+	repo := NewSessionRepo(db)
+
+	live := makeHashesPair("live")
+	if _, err := repo.Create(context.Background(), SessionCreateInput{
+		TokenID: tok.ID, SessionHash: live.s, CSRFHash: live.c, TTL: time.Hour,
+	}); err != nil {
+		t.Fatalf("Create live: %v", err)
+	}
+
+	revoked := makeHashesPair("revoked")
+	rv, err := repo.Create(context.Background(), SessionCreateInput{
+		TokenID: tok.ID, SessionHash: revoked.s, CSRFHash: revoked.c, TTL: time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("Create revoked: %v", err)
+	}
+	if err := repo.Revoke(context.Background(), rv.ID); err != nil {
+		t.Fatalf("Revoke: %v", err)
+	}
+
+	expired := makeHashesPair("expired")
+	if _, err := repo.Create(context.Background(), SessionCreateInput{
+		TokenID: tok.ID, SessionHash: expired.s, CSRFHash: expired.c, TTL: -time.Hour,
+	}); err != nil {
+		t.Fatalf("Create expired: %v", err)
+	}
+
+	got, err := repo.ListByTokenID(context.Background(), tok.ID)
+	if err != nil {
+		t.Fatalf("ListByTokenID: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("len(got)=%d; want 1 (only the live row)", len(got))
+	}
+	if !bytes.Equal(got[0].SessionHash, live.s) {
+		t.Errorf("returned row is not the live row")
+	}
+}
+
+func TestSessionRepo_RevokeByIDAndTokenIDOwnerOnly(t *testing.T) {
+	db := newTestDB(t)
+	owner := mustSeedToken(t, db, "owner")
+	other := mustSeedToken(t, db, "other")
+	repo := NewSessionRepo(db)
+
+	mine := makeHashesPair("mine")
+	mineSess, err := repo.Create(context.Background(), SessionCreateInput{
+		TokenID: owner.ID, SessionHash: mine.s, CSRFHash: mine.c, TTL: time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("Create mine: %v", err)
+	}
+
+	theirs := makeHashesPair("theirs")
+	theirsSess, err := repo.Create(context.Background(), SessionCreateInput{
+		TokenID: other.ID, SessionHash: theirs.s, CSRFHash: theirs.c, TTL: time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("Create theirs: %v", err)
+	}
+
+	if n, err := repo.RevokeByIDAndTokenID(context.Background(), mineSess.ID, owner.ID); err != nil || n != 1 {
+		t.Fatalf("revoke own n=%d err=%v; want 1/nil", n, err)
+	}
+
+	// Owner tries other's id: affected == 0, and the foreign row stays live.
+	if n, err := repo.RevokeByIDAndTokenID(context.Background(), theirsSess.ID, owner.ID); err != nil || n != 0 {
+		t.Errorf("cross-token revoke n=%d err=%v; want 0/nil (no oracle)", n, err)
+	}
+	survivor, err := repo.ByHash(context.Background(), theirs.s)
+	if err != nil {
+		t.Fatalf("foreign row vanished: %v", err)
+	}
+	if survivor.RevokedAt != nil {
+		t.Errorf("cross-token attempt mutated foreign row: revoked_at=%v", *survivor.RevokedAt)
+	}
+}
+
+func TestSessionRepo_RevokeByIDAndTokenIDIdempotent(t *testing.T) {
+	db := newTestDB(t)
+	tok := mustSeedToken(t, db, "dash")
+	repo := NewSessionRepo(db)
+
+	pair := makeHashesPair("idem")
+	sess, err := repo.Create(context.Background(), SessionCreateInput{
+		TokenID: tok.ID, SessionHash: pair.s, CSRFHash: pair.c, TTL: time.Hour,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	if n, err := repo.RevokeByIDAndTokenID(context.Background(), sess.ID, tok.ID); err != nil || n != 1 {
+		t.Fatalf("first revoke n=%d err=%v; want 1/nil", n, err)
+	}
+	// Already revoked: 0 rows — no error, no oracle.
+	if n, err := repo.RevokeByIDAndTokenID(context.Background(), sess.ID, tok.ID); err != nil || n != 0 {
+		t.Errorf("re-revoke n=%d err=%v; want 0/nil (idempotent)", n, err)
+	}
+	// Unknown id: 0 rows — same shape as cross-token / already revoked.
+	if n, err := repo.RevokeByIDAndTokenID(context.Background(), 999_999, tok.ID); err != nil || n != 0 {
+		t.Errorf("unknown id revoke n=%d err=%v; want 0/nil", n, err)
+	}
+}
+
+type hashPair struct{ s, c []byte }
+
+func makeHashesPair(seed string) hashPair {
+	s, c := makeHashes(seed)
+	return hashPair{s: s, c: c}
+}
+
 func TestSessionRepo_Prune(t *testing.T) {
 	db := newTestDB(t)
 	tok := mustSeedToken(t, db, "dash")

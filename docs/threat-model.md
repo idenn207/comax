@@ -66,6 +66,65 @@ above:
    re-encrypting every row. Plan it before you have so many rows that
    the operation becomes a project.
 
+## Browser sessions (M2)
+
+The dashboard reuses bearer tokens, but wraps them in an HTTP cookie so
+the browser security model can do its job. Adopting the M2 dashboard
+does not weaken the M1 threat model; it adds three new surfaces and
+hardens each one:
+
+1. **Cookie**: `Set-Cookie: comax_session=<random>; HttpOnly; Secure;
+   SameSite=Strict; Path=/`. The cookie value is the session token; the
+   server stores `SHA-256(token)` exactly as it does bearer tokens. No
+   client-side JavaScript can read it (HttpOnly) and no cross-site
+   request can carry it (SameSite=Strict). Recovery from a stolen
+   cookie requires both the cookie and the matching CSRF secret stored
+   server-side per session.
+2. **CSRF**: double-submit token. `POST /api/v1/dashboard/session`
+   returns a CSRF token in the JSON body; the SPA echoes it back in
+   `X-CSRF-Token` on every mutating call. The server compares with
+   `subtle.ConstantTimeCompare`. Bearer-auth requests skip the check —
+   the CLI does not carry a cookie, so the cookie+CSRF rail does not
+   apply to it.
+3. **CSP**: every SPA response carries a per-request nonce
+   (`Content-Security-Policy: ... 'nonce-<random>' ...`). Inline scripts
+   without the matching nonce are blocked. React renders text by
+   default, but the CSP gate is what stops a future templating mistake
+   from becoming an XSS escape from the cookie's HttpOnly bound.
+4. **Session lifetime**: 30 days default. The dashboard's Sessions
+   page lets the operator revoke any session (its `revoked_at` flips
+   server-side and the cookie no longer authenticates). Expired and
+   revoked rows are pruned hourly.
+5. **Logout**: `DELETE /api/v1/dashboard/session` revokes the session
+   row and clears the cookie. Closing the tab does **not** revoke the
+   session — the cookie still works until TTL or explicit revocation.
+
+### Honest limits
+
+We list these so the operator can build their workstation hygiene
+around what the dashboard actually protects, not the protection they
+might assume.
+
+- **CSRF 토큰은 mutation에만 요구된다.** `GET /api/v1/...` 요청은
+  cookie 단독으로 인증된다. cookie 한 장만 빠져나가도 그 시점부터의
+  **모든 read (시크릿 값 포함) 가 가능**해진다. CSRF는 cross-site write
+  를 막을 뿐 cookie 자체의 보호 수단이 아니다.
+- **Revoke는 회수 수단이지 탈취 방지 수단이 아니다.** `/settings/sessions`
+  에서 임의 세션을 회수해도, **회수 이전에 이미 read 된 값은 되돌릴 수
+  없다**. cookie 자체가 의심된다면 해당 service token 을 통째로
+  revoke 해 그 token 으로 발급된 모든 세션을 무력화하는 게 옳다.
+- **보안 경계는 cookie 보호다.** HttpOnly + Secure + SameSite=Strict +
+  Path=/ 가 cookie 가 JS / cross-site / 평문 채널로 새지 않도록 한다.
+  운영자의 workstation 위생 (디바이스 잠금, 신뢰할 수 있는 브라우저,
+  공용 단말에서 로그인하지 않기) 이 그 위에 올라가는 마지막 한 줄이다.
+- **다른 token이 발급한 세션은 회수할 수 없다.** v1 는 multi-token
+  admin 권한을 지원하지 않는다. 다른 service token 이 만든 세션을
+  무력화하려면 그 token 자체를 revoke 해야 한다.
+
+What's still out of scope: per-user identity. v1 has a single privilege
+level; "logged-in operator" means "anyone with a bearer token". RBAC
+is deferred to a later milestone and is called out in the PRD.
+
 ## Audit log retention
 
 Every state-changing operation writes a row to `audit_log` with the

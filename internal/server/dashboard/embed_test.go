@@ -33,7 +33,7 @@ func TestEmbedMode_FSResolves(t *testing.T) {
 		t.Fatalf("read dist root: %v", err)
 	}
 	// At minimum .gitkeep should be present (committed into the repo to
-	// keep //go:embed happy before pnpm build produces anything else).
+	// keep //go:embed happy before `npm run build` produces anything else).
 	if len(entries) == 0 {
 		t.Fatal("dist root has no entries; .gitkeep sentinel missing?")
 	}
