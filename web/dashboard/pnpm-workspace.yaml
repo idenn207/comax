@@ -1,5 +1,10 @@
 # Not a workspace; this file exists because pnpm 10+ requires explicit
 # opt-in for transitive postinstall scripts. esbuild ships its native
 # binary via postinstall and Vite refuses to build without it.
-allowBuilds:
-  esbuild: true
+#
+# Key name moved in pnpm 11.5: the legacy `allowBuilds:` map is no
+# longer read; the supported setting lives under `onlyBuiltDependencies:`
+# in pnpm-workspace.yaml (per https://pnpm.io/settings). Same intent,
+# new spelling — esbuild is the only allowed builder.
+onlyBuiltDependencies:
+  - esbuild
