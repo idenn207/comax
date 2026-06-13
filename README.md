@@ -5,11 +5,14 @@ Built to replace hand-synced `.env` files with one source of truth that ships
 encrypted secrets to dev workstations, CI runners, and production
 containers.
 
-> **Status**: Milestone 1 server + CLI shipped end-to-end. Operator
-> dogfood (Task 14) is the remaining acceptance gate. See
+> **Status**: Milestone 1 server + CLI shipped end-to-end; Milestone 2
+> ships the embedded operator dashboard at `/`. Operator dogfood (M1
+> Task 14, M2 Task 15) is the remaining acceptance gate. See
 > [`.claude/plans/comax-secrets.plan.md`](.claude/plans/comax-secrets.plan.md)
-> for the full task list and [`docs/quickstart.md`](docs/quickstart.md)
-> for the 5-minute walkthrough.
+> for the M1 task list,
+> [`.claude/plans/comax-secrets-dashboard.plan.md`](.claude/plans/comax-secrets-dashboard.plan.md)
+> for M2, and [`docs/quickstart.md`](docs/quickstart.md) for the
+> 5-minute walkthrough.
 
 ## Layout
 
@@ -51,8 +54,13 @@ make build
 ./bin/secret run -- npm run dev         # secrets injected as env, no disk write
 ```
 
+Prefer a browser? Open <http://localhost:8080/> and paste the same
+bootstrap token on `/login`. See [docs/dashboard.md](docs/dashboard.md)
+for the operator dashboard.
+
 See [docs/quickstart.md](docs/quickstart.md) for the full 5-minute
-walkthrough, [docs/threat-model.md](docs/threat-model.md) for the
+walkthrough, [docs/dashboard.md](docs/dashboard.md) for the dashboard
+operator guide, [docs/threat-model.md](docs/threat-model.md) for the
 operator security obligations, and [docs/perf.md](docs/perf.md) for
 the 300 ms cold-start budget.
 

@@ -66,6 +66,43 @@ above:
    re-encrypting every row. Plan it before you have so many rows that
    the operation becomes a project.
 
+## Browser sessions (M2)
+
+The dashboard reuses bearer tokens, but wraps them in an HTTP cookie so
+the browser security model can do its job. Adopting the M2 dashboard
+does not weaken the M1 threat model; it adds three new surfaces and
+hardens each one:
+
+1. **Cookie**: `Set-Cookie: comax_session=<random>; HttpOnly; Secure;
+   SameSite=Strict; Path=/`. The cookie value is the session token; the
+   server stores `SHA-256(token)` exactly as it does bearer tokens. No
+   client-side JavaScript can read it (HttpOnly) and no cross-site
+   request can carry it (SameSite=Strict). Recovery from a stolen
+   cookie requires both the cookie and the matching CSRF secret stored
+   server-side per session.
+2. **CSRF**: double-submit token. `POST /api/v1/dashboard/session`
+   returns a CSRF token in the JSON body; the SPA echoes it back in
+   `X-CSRF-Token` on every mutating call. The server compares with
+   `subtle.ConstantTimeCompare`. Bearer-auth requests skip the check —
+   the CLI does not carry a cookie, so the cookie+CSRF rail does not
+   apply to it.
+3. **CSP**: every SPA response carries a per-request nonce
+   (`Content-Security-Policy: ... 'nonce-<random>' ...`). Inline scripts
+   without the matching nonce are blocked. React renders text by
+   default, but the CSP gate is what stops a future templating mistake
+   from becoming an XSS escape from the cookie's HttpOnly bound.
+4. **Session lifetime**: 30 days default. The dashboard's Sessions
+   page lets the operator revoke any session (its `revoked_at` flips
+   server-side and the cookie no longer authenticates). Expired and
+   revoked rows are pruned hourly.
+5. **Logout**: `DELETE /api/v1/dashboard/session` revokes the session
+   row and clears the cookie. Closing the tab does **not** revoke the
+   session — the cookie still works until TTL or explicit revocation.
+
+What's still out of scope: per-user identity. v1 has a single privilege
+level; "logged-in operator" means "anyone with a bearer token". RBAC
+is deferred to a later milestone and is called out in the PRD.
+
 ## Audit log retention
 
 Every state-changing operation writes a row to `audit_log` with the

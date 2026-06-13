@@ -69,6 +69,12 @@ This writes `~/.config/comax/credentials.json` with mode `0600`. The
 plaintext token is **only** persisted here; the server stores its
 SHA-256 hash.
 
+> Or open `http://localhost:8080/` in a browser and paste the same
+> token on `/login`. The dashboard sets an `HttpOnly`+`Secure`+
+> `SameSite=Strict` session cookie scoped to `/`, and CSRF-protects
+> every mutating call. See [dashboard.md](dashboard.md) for the full
+> operator walkthrough.
+
 ## 4. Initialise the project
 
 ```bash
