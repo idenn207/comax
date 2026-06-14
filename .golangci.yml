@@ -20,6 +20,9 @@ linters:
     - gosec
     - misspell
     - revive
+  exclusions:
+    paths:
+      - web/dashboard/node_modules
   settings:
     errcheck:
       exclude-functions:
