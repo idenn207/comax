@@ -256,7 +256,7 @@ du -b internal/server/dashboard/dist/assets/*.js | awk '{ s+=$1 } END { exit (s 
 - [ ] Cross-compile `linux/{amd64,arm64,arm/v7}` with `-tags embed_dashboard` succeeds in CI.
 - [ ] `docker compose up` ≤ 120 s healthy with dashboard reachable at `/`.
 - [ ] Browser session security: HttpOnly+Secure+SameSite=Strict cookie; CSRF enforced on mutations; CSP nonce on SPA HTML.
-- [ ] **Operator dogfood (Task 15): three M1-painful flows completed via dashboard in ≤ 30 s each, logged in `docs/dogfood.md`.**
+- [~] **Operator dogfood (Task 15): three M1-painful flows completed via dashboard in ≤ 30 s each, logged in `docs/dogfood.md`.** — **DEFERRED to operator trigger** by closure plan D1 (2026-06-15). Replaced by minimal live smoke (1 회 PASS, `docs/dashboard-dogfood.md` Record). Flow A/B/C 정량 측정은 운영 단계의 별개 trigger로 분리. 본 acceptance line은 본 closure 시점에 *미충족 상태로* M2 `done` 처리됨. 참조: [comax-secrets-dashboard-m2-close.plan.md](./comax-secrets-dashboard-m2-close.plan.md) D1, [codex-findings-backlog.md](../codex-findings-backlog.md).
 - [ ] `docs/dashboard.md`, `docs/threat-model.md`, `docs/quickstart.md`, `README.md` updated.
 - [ ] PRD Milestone 2 row updated to `done` with this plan linked.
 

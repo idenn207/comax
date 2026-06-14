@@ -66,6 +66,13 @@ PRD M2 셀 footer에 `(gate: impeccable + codex 019ec6da; receipt: ...)` 한
 
 ## Not shipped (의도된 분리)
 
+- **M2 본체 plan Task 15 dogfood acceptance** (`three flows ≤ 30s logged
+  in docs/dogfood.md`) — closure plan D1에 의해 **미충족 상태로 deferred**
+  처리되어 M2 `done` 선언. 최소 live smoke 1회로 대체된 결정. 본체 plan
+  archived acceptance line은 `[~]` 마커 + DEFERRED footer로 잠금
+  ([completed/comax-secrets-dashboard.plan.md L259](../plans/completed/comax-secrets-dashboard.plan.md)).
+  Codex stop-time review가 충돌을 flag → 본 보고서에 명시적 정직성
+  보강(2026-06-15 follow-up commit).
 - `docs/dashboard-dogfood.md` **Flow A/B/C 정량 측정** (클릭 수 / wall-clock)
   — 운영 단계의 별개 trigger로 미룸. PRD Success Metrics ("신규 envvar
   1건 추가 → 전 환경 반영 시간", "Local↔dev↔prod 누락 0건/월")

@@ -8,8 +8,11 @@ containers.
 > **Status**: Milestones 1 and 2 shipped end-to-end. M1 ships the
 > single-binary server + CLI; M2 ships the embedded operator dashboard
 > at `/` (project/env/secret CRUD, version diff, rollback, env-vs-env
-> diff, audit log, session controls). Next gate: M3 GitHub Actions
-> integration. See
+> diff, audit log, session controls). M2 closure plan D1 **deferred**
+> the original Task 15 dogfood acceptance (`three flows ≤ 30s in
+> docs/dogfood.md`) to an operator-driven trigger; minimal live smoke
+> (1 회 PASS) lives in [`docs/dashboard-dogfood.md`](docs/dashboard-dogfood.md).
+> Next gate: M3 GitHub Actions integration. See
 > [`.claude/plans/completed/comax-secrets.plan.md`](.claude/plans/completed/comax-secrets.plan.md)
 > for the M1 task list,
 > [`.claude/plans/completed/comax-secrets-dashboard.plan.md`](.claude/plans/completed/comax-secrets-dashboard.plan.md)
