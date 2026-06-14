@@ -25,6 +25,13 @@ cov_*
 # PRP workflow scratch directories (per-feature plans/reports)
 .claude/PRPs/
 
+# Claude Code local session artefacts (per-session, machine-local)
+.claude/receipts/
+.claude/state/
+.claude/tmp/
+.claude/settings.local.json
+web/dashboard/.claude/
+
 # Go workspace files (kept out of version control)
 go.work
 go.work.sum
