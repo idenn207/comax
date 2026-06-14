@@ -1,6 +1,6 @@
 # 실행 보고서: Comax Secrets 대시보드 M2 Task 10·11
 
-**원본 플랜**: [.claude/plans/comax-secrets-dashboard.plan.md](../plans/comax-secrets-dashboard.plan.md)
+**원본 플랜**: [.claude/plans/completed/comax-secrets-dashboard.plan.md](../plans/completed/comax-secrets-dashboard.plan.md)
 **범위**: M2 Task 10 (Env-vs-env diff 화면) + Task 11 (Audit feed)
 **브랜치**: `feat/dashboard-ui` (worktree)
 **상태**: 코드 완료, 검증 그린, 미커밋

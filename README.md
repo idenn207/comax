@@ -5,14 +5,16 @@ Built to replace hand-synced `.env` files with one source of truth that ships
 encrypted secrets to dev workstations, CI runners, and production
 containers.
 
-> **Status**: Milestone 1 server + CLI shipped end-to-end; Milestone 2
-> ships the embedded operator dashboard at `/`. Operator dogfood (M1
-> Task 14, M2 Task 15) is the remaining acceptance gate. See
-> [`.claude/plans/comax-secrets.plan.md`](.claude/plans/comax-secrets.plan.md)
+> **Status**: Milestones 1 and 2 shipped end-to-end. M1 ships the
+> single-binary server + CLI; M2 ships the embedded operator dashboard
+> at `/` (project/env/secret CRUD, version diff, rollback, env-vs-env
+> diff, audit log, session controls). Next gate: M3 GitHub Actions
+> integration. See
+> [`.claude/plans/completed/comax-secrets.plan.md`](.claude/plans/completed/comax-secrets.plan.md)
 > for the M1 task list,
-> [`.claude/plans/comax-secrets-dashboard.plan.md`](.claude/plans/comax-secrets-dashboard.plan.md)
-> for M2, and [`docs/quickstart.md`](docs/quickstart.md) for the
-> 5-minute walkthrough.
+> [`.claude/plans/completed/comax-secrets-dashboard.plan.md`](.claude/plans/completed/comax-secrets-dashboard.plan.md)
+> for M2 (with cleanup + closure plans alongside), and
+> [`docs/quickstart.md`](docs/quickstart.md) for the 5-minute walkthrough.
 
 ## Layout
 
