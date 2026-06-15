@@ -30,6 +30,8 @@ cov_*
 .claude/state/
 .claude/tmp/
 .claude/settings.local.json
+.claude/skills/
+.github/skills/
 web/dashboard/.claude/
 
 # Go workspace files (kept out of version control)
