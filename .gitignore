@@ -27,10 +27,40 @@ cov_*
 
 # Claude Code local session artefacts (per-session, machine-local)
 .claude/receipts/
-.claude/state/
+
+# v0.2 Stop-loop bounded counter and advisory locks (session-local).
+# STATE.md and fix-task.md remain git-tracked per plan §4.
+.claude/state/loop-counter.json
+.claude/state/*.lock
+# dashboard-truthfulness M1 — completion-ledger entries ARE git-tracked, but the
+# per-entry write lock + atomic tmp are local-only ephemera. The single-level
+# glob above does not reach this subdir, so name them explicitly to keep
+# crash-leaked locks/tmps out of the tracked register directory.
+.claude/state/completion-ledger/*.lock
+.claude/state/completion-ledger/*.tmp
+# Codex stop-loop bridge scratch input — local-only.
+.claude/state/codex-stop-loop-input.txt
+# Dogfood ephemera (fixtures + sandboxes) — never committed.
+.claude/state/dogfood-*/
+# v0.2.7 hook-trace shard ledgers (per-invocation observability — local only).
+.claude/state/hook-trace/
+# v0.2.7 hook capability probe cache (per-machine binary path + mtime — local only).
+.claude/state/hook-caps.json
+# v0.3.0 auto-handoff append-only log (per-session cost-tier events — local only).
+.claude/state/auto-handoff-log.jsonl
+# v1.5.0-m1 — session-ledger repo opt-in scope. Default is global
+# (~/.local/share/ecc-homunculus/projects/<projectId>/.session-ledgers/),
+# but MCCP_SESSION_LEDGER_SCOPE=repo or hybrid writes here too. Per-session
+# JSON files are never appropriate to commit.
+.claude/state/session-ledgers/
+
+# v1.3.0 Observability Surface II — derive cache (M1+, never committed).
+# Cache layer is per-session/per-machine; sources of truth remain receipts,
+# envelopes, and STATE.md. Pattern mirrors .claude/state/*.lock above.
+.claude/cache/
+
 .claude/tmp/
 .claude/settings.local.json
-.claude/skills/
 .github/skills/
 web/dashboard/.claude/
 
@@ -42,9 +72,10 @@ go.work.sum
 .vscode/
 .idea/
 .playwright-mcp/
-.impeccable/
 *.swp
 *.stackdump
+.impeccable/*
+!.impeccable/design.json
 
 # Project-specific (per plan: keys and DB live outside the repo)
 .secretrc
