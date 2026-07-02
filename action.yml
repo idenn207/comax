@@ -11,7 +11,7 @@ inputs:
     description: "Comax Secrets server base URL (e.g. https://secrets.example.com)."
     required: true
   token:
-    description: "A Comax service token. Store it as a GitHub secret and pass ${{ secrets.COMAX_TOKEN }}."
+    description: "A Comax service token. Store it as a GitHub Actions secret (e.g. COMAX_TOKEN) and pass it via the with.token input."
     required: true
   project:
     description: "Project name to resolve secrets from."
