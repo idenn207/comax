@@ -57,6 +57,8 @@ func newRootCmd() *cobra.Command {
 		newSetCmd(st),
 		newDiffCmd(st),
 		newRunCmd(st),
+		newExportCmd(st),
+		newTokenCmd(st),
 	)
 
 	// Silence cobra's "unknown command" usage dump — we want stderr to

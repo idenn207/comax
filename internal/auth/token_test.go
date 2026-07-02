@@ -97,7 +97,7 @@ func TestVerify_HappyPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateToken: %v", err)
 	}
-	if _, err := repo.Create(ctx, "ci", HashToken(plain)); err != nil {
+	if _, err := repo.Create(ctx, "ci", HashToken(plain), false); err != nil {
 		t.Fatalf("seed Create: %v", err)
 	}
 

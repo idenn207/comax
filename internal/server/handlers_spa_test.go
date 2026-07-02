@@ -306,4 +306,3 @@ func TestHandleSPA_HEADReturnsHeadersNoBody(t *testing.T) {
 		t.Fatalf("HEAD body length = %d; want 0", len(body))
 	}
 }
-

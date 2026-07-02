@@ -313,7 +313,7 @@ func TestDashboardSessions_ListReturnsOnlyOwnTokenSessions(t *testing.T) {
 	// must not surface it under the actor's listing — that's the whole
 	// point of the token_id scope on ListByTokenID.
 	secondTok, err := store.NewTokenRepo(ts.db).Create(context.Background(),
-		"second", hashBearer("second"))
+		"second", hashBearer("second"), false)
 	if err != nil {
 		t.Fatalf("seed second token: %v", err)
 	}
@@ -402,7 +402,7 @@ func TestDashboardSessions_RevokeByIDCrossTokenSilentNoAudit(t *testing.T) {
 
 	// Foreign token + session.
 	foreignTok, err := store.NewTokenRepo(ts.db).Create(context.Background(),
-		"foreign", hashBearer("foreign"))
+		"foreign", hashBearer("foreign"), false)
 	if err != nil {
 		t.Fatalf("seed foreign token: %v", err)
 	}

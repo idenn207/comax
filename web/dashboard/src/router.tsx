@@ -9,6 +9,7 @@ import {
 } from '@tanstack/react-router';
 
 import { isAuthenticated } from './lib/auth';
+import { ActionsPage } from './pages/Actions';
 import { AuditPage } from './pages/Audit';
 import { EnvDiffPage } from './pages/EnvDiff';
 import { EnvSecretsPage } from './pages/EnvSecrets';
@@ -16,6 +17,7 @@ import { LoginPage } from './pages/Login';
 import { ProjectPage } from './pages/Project';
 import { ProjectsPage } from './pages/Projects';
 import { SessionsPage } from './pages/Sessions';
+import { TokensPage } from './pages/Tokens';
 
 /**
  * Code-based router. Routes:
@@ -125,6 +127,20 @@ const settingsSessionsRoute = createRoute({
   component: SessionsPage,
 });
 
+const settingsTokensRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/settings/tokens',
+  beforeLoad: requireAuth,
+  component: TokensPage,
+});
+
+const integrationsActionsRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/integrations/github-actions',
+  beforeLoad: requireAuth,
+  component: ActionsPage,
+});
+
 // eslint-disable-next-line react-refresh/only-export-components
 function ProjectRouteComponent() {
   const { project } = useParams({ from: '/projects/$project' });
@@ -158,6 +174,8 @@ const routeTree = rootRoute.addChildren([
   auditRoute,
   loginRoute,
   settingsSessionsRoute,
+  settingsTokensRoute,
+  integrationsActionsRoute,
 ]);
 
 export const router = createRouter({

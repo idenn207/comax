@@ -19,6 +19,7 @@ import type {
   AuditEntry,
   AuditMeta,
   AuditPage,
+  CreatedToken,
   EnvDiff,
   Environment,
   Project,
@@ -26,6 +27,7 @@ import type {
   SecretVersionDetail,
   SecretVersionListEntry,
   Session,
+  Token,
 } from './types';
 
 const encode = encodeURIComponent;
@@ -60,6 +62,7 @@ export const queryKeys = {
       filter.limit ?? 0,
     ] as const,
   sessions: () => ['sessions'] as const,
+  tokens: () => ['tokens'] as const,
 } as const;
 
 export async function listProjects(signal?: AbortSignal): Promise<Project[]> {
@@ -223,6 +226,23 @@ export async function listSessions(signal?: AbortSignal): Promise<Session[]> {
  */
 export async function revokeSession(id: number): Promise<void> {
   await apiFetch<void>(`/api/v1/dashboard/sessions/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Service-token management (admin-only server-side). A non-admin caller
+ * receives an ApiError with code 'forbidden'; the Tokens page catches it
+ * and renders an "admin only" notice rather than an error banner.
+ */
+export async function listTokens(signal?: AbortSignal): Promise<Token[]> {
+  return apiFetch<Token[]>('/api/v1/tokens', { signal });
+}
+
+export async function createToken(name: string): Promise<CreatedToken> {
+  return apiFetch<CreatedToken>('/api/v1/tokens', { method: 'POST', body: { name } });
+}
+
+export async function revokeToken(id: number): Promise<void> {
+  await apiFetch<void>(`/api/v1/tokens/${id}`, { method: 'DELETE' });
 }
 
 export async function listAudit(filter: AuditFilter, signal?: AbortSignal): Promise<AuditPage> {

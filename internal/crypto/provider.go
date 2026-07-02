@@ -38,7 +38,7 @@ var ErrInsecureKeyFile = errors.New("crypto: insecure master key file")
 // Operators running on Windows are expected to lock the file via NTFS
 // ACLs separately; the threat-model doc spells this out.
 type FileKeyProvider struct {
-	path string
+	path   string
 	logger *slog.Logger
 }
 

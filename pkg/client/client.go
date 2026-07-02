@@ -278,3 +278,51 @@ func (c *Client) PutSecret(ctx context.Context, projectName, envName, key, value
 		map[string]string{"value": value}, &out)
 	return out, err
 }
+
+// Token is the metadata shape returned by GET /api/v1/tokens. The token
+// hash is never present — a listing carries only non-secret fields.
+// LastUsedAt / RevokedAt are nil when unset.
+type Token struct {
+	ID         int64      `json:"id"`
+	Name       string     `json:"name"`
+	IsAdmin    bool       `json:"is_admin"`
+	CreatedAt  time.Time  `json:"created_at"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	RevokedAt  *time.Time `json:"revoked_at,omitempty"`
+}
+
+// TokenCreated is returned by CreateToken. Token is the plaintext bearer,
+// shown exactly once — the server persists only its SHA-256 hash.
+type TokenCreated struct {
+	Token     string    `json:"token"`
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	IsAdmin   bool      `json:"is_admin"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// ListTokens returns every service token (metadata only). The server
+// requires an admin bearer; a non-admin caller receives an *APIError with
+// Code "forbidden".
+func (c *Client) ListTokens(ctx context.Context) ([]Token, error) {
+	var out []Token
+	err := c.do(ctx, http.MethodGet, "/api/v1/tokens", nil, &out)
+	return out, err
+}
+
+// CreateToken issues a new non-admin service token named name and returns
+// its plaintext (shown once). Requires an admin bearer.
+func (c *Client) CreateToken(ctx context.Context, name string) (TokenCreated, error) {
+	var out TokenCreated
+	err := c.do(ctx, http.MethodPost, "/api/v1/tokens",
+		map[string]string{"name": name}, &out)
+	return out, err
+}
+
+// RevokeToken soft-revokes the token with the given id. Returns
+// ErrNotFound (via *APIError) when the id is unknown or already revoked.
+// Requires an admin bearer.
+func (c *Client) RevokeToken(ctx context.Context, id int64) error {
+	return c.do(ctx, http.MethodDelete,
+		fmt.Sprintf("/api/v1/tokens/%d", id), nil, nil)
+}

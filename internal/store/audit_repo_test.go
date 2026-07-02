@@ -12,7 +12,7 @@ func TestAuditRepo_AppendAndList(t *testing.T) {
 	ctx := context.Background()
 
 	// FK on actor_token → service_tokens.id; seed a real token row.
-	tok, err := NewTokenRepo(db).Create(ctx, "actor", []byte("hash"))
+	tok, err := NewTokenRepo(db).Create(ctx, "actor", []byte("hash"), false)
 	if err != nil {
 		t.Fatalf("seed token: %v", err)
 	}
@@ -204,11 +204,11 @@ func TestAuditRepo_ListFilterByActor(t *testing.T) {
 	db := newTestDB(t)
 	repo := NewAuditRepo(db)
 	ctx := context.Background()
-	tok1, err := NewTokenRepo(db).Create(ctx, "a", []byte("h1"))
+	tok1, err := NewTokenRepo(db).Create(ctx, "a", []byte("h1"), false)
 	if err != nil {
 		t.Fatalf("seed tok1: %v", err)
 	}
-	tok2, err := NewTokenRepo(db).Create(ctx, "b", []byte("h2"))
+	tok2, err := NewTokenRepo(db).Create(ctx, "b", []byte("h2"), false)
 	if err != nil {
 		t.Fatalf("seed tok2: %v", err)
 	}

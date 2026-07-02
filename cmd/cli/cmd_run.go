@@ -28,8 +28,9 @@ import (
 // child command so flag parsing stops there.
 func newRunCmd(st *rootState) *cobra.Command {
 	var (
-		envFlag string
-		quiet   bool
+		envFlag     string
+		projectFlag string
+		quiet       bool
 	)
 	cmd := &cobra.Command{
 		Use:                   "run -- COMMAND [ARGS...]",
@@ -77,6 +78,7 @@ func newRunCmd(st *rootState) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&envFlag, "env", "", "target env (overrides resolver)")
+	cmd.Flags().StringVar(&projectFlag, "project", "", "project name (overrides .secretrc; required in CI where no .secretrc exists)")
 	cmd.Flags().BoolVar(&quiet, "quiet", false, "suppress resolver banner")
 	return cmd
 }

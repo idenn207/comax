@@ -12,7 +12,11 @@ containers.
 > the original Task 15 dogfood acceptance (`three flows ≤ 30s in
 > docs/dogfood.md`) to an operator-driven trigger; minimal live smoke
 > (1 회 PASS) lives in [`docs/dashboard-dogfood.md`](docs/dashboard-dogfood.md).
-> Next gate: M3 GitHub Actions integration. See
+> M3 ships GitHub Actions integration: a composite action that injects
+> secrets into a workflow (process-env by default, opt-in job-wide
+> github-env), admin-only token issuance, and soft revoke — see
+> [`docs/github-actions.md`](docs/github-actions.md). Next gate: M4
+> webhooks + secret referencing/overrides. See
 > [`.claude/plans/completed/comax-secrets.plan.md`](.claude/plans/completed/comax-secrets.plan.md)
 > for the M1 task list,
 > [`.claude/plans/completed/comax-secrets-dashboard.plan.md`](.claude/plans/completed/comax-secrets-dashboard.plan.md)
@@ -65,9 +69,10 @@ for the operator dashboard.
 
 See [docs/quickstart.md](docs/quickstart.md) for the full 5-minute
 walkthrough, [docs/dashboard.md](docs/dashboard.md) for the dashboard
-operator guide, [docs/threat-model.md](docs/threat-model.md) for the
-operator security obligations, and [docs/perf.md](docs/perf.md) for
-the 300 ms cold-start budget.
+operator guide, [docs/github-actions.md](docs/github-actions.md) for the
+GitHub Actions integration (M3), [docs/threat-model.md](docs/threat-model.md)
+for the operator security obligations, and [docs/perf.md](docs/perf.md)
+for the 300 ms cold-start budget.
 
 ## Development
 

@@ -21,7 +21,7 @@ func TestVersionRepo_CreateAndList(t *testing.T) {
 	}
 
 	// Seed a real service token so the FK to service_tokens.id resolves.
-	tok, err := NewTokenRepo(db).Create(ctx, "actor", []byte("hash"))
+	tok, err := NewTokenRepo(db).Create(ctx, "actor", []byte("hash"), false)
 	if err != nil {
 		t.Fatalf("seed token: %v", err)
 	}

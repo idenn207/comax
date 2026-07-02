@@ -181,6 +181,16 @@ func (s *Server) authSession(w http.ResponseWriter, r *http.Request, next http.H
 		writeError(w, status, code, msg, s.logger)
 		return
 	}
+	// R2-1: a soft revoke must terminate live dashboard sessions too, not
+	// just the bearer arm. ByHash already excludes revoked tokens, but the
+	// session arm re-hydrates via ByID (which deliberately returns revoked
+	// rows) — so we check RevokedAt here and 401 to force re-auth. Without
+	// this, a revoked admin could keep operating through an open browser tab.
+	if tok.RevokedAt != nil {
+		status, code, msg := httpError(auth.ErrUnknownToken)
+		writeError(w, status, code, msg, s.logger)
+		return
+	}
 	next.ServeHTTP(w, r.WithContext(auth.WithToken(r.Context(), tok)))
 }
 

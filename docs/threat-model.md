@@ -125,6 +125,51 @@ What's still out of scope: per-user identity. v1 has a single privilege
 level; "logged-in operator" means "anyone with a bearer token". RBAC
 is deferred to a later milestone and is called out in the PRD.
 
+## Service tokens & CI (M3)
+
+M3 adds a GitHub Actions composite action and the token-management surface
+it needs. The M1 rule that "a stolen plaintext token is usable until
+revoked" is now enforceable in-band, and token issuance is no longer flat:
+
+1. **Admin-only issuance.** `service_tokens.is_admin` gates token
+   management. Only an admin token (the bootstrap token, or one promoted
+   by the migration backfill) may `POST/GET/DELETE /api/v1/tokens`. Issued
+   CI tokens are always non-admin, so a leaked CI credential **cannot mint
+   or revoke further tokens** — it escalates no privilege it did not
+   already hold.
+2. **Soft revoke on both arms.** `service_tokens.revoked_at` soft-revokes
+   a credential. The bearer arm (`ByHash`) filters revoked rows, and the
+   dashboard session arm (`ByID` + a `RevokedAt` check in `authSession`)
+   401s any live session bound to a revoked token. Revoking a token thus
+   kills both its CLI/CI use and any open browser tab (R2-1).
+3. **No credential residue on the runner.** The action writes its
+   credential to a one-shot `$RUNNER_TEMP/comax-creds.json`, never the
+   default `~/.config/comax` path, and an `if: always()` cleanup step
+   deletes it even on failure (R2-2). The token is passed via env, never a
+   command line, so it is absent from process listings.
+4. **Injection models.** The default `secret run` path injects secrets
+   only into the child process's environment (process-env). The opt-in
+   `export-to: github-env` path widens exposure to the whole job and is
+   documented as such. Both mask values via `::add-mask::`, but masking is
+   best-effort (R2-3): the `action-smoke` workflow proves the default path
+   never prints the plaintext to a job log.
+
+### Honest limits
+
+- **CI 토큰에는 project/env read scope가 없다 (M4 이연).** non-admin CI
+  토큰도 현재는 그 서버의 **모든 project/env 시크릿을 read**할 수 있다.
+  scope 컬럼·미들웨어 인가는 위협모델 재정의가 필요해 M4로 명시 이연됐다
+  (사용자 확정). M3에서 blast radius를 닫는 수단은 **발급 admin-only 제한 +
+  soft revoke**다.
+- **마스킹은 best-effort다.** `::add-mask::`는 로그에서 값을 가릴 뿐이며,
+  짧거나 저엔트로피인 값은 부분적으로 새어나올 수 있다. process-env 기본
+  모드는 값을 job 로그 경로에 올리지 않으므로 이 한계를 회피한다.
+- **github-env opt-in은 job 전체로 노출을 넓힌다.** opt-in 이후의 모든
+  스텝(서드파티 action 포함)이 시크릿을 env로 본다. 신뢰할 수 없는 후속
+  스텝이 있다면 process-env를 쓴다.
+- **revoke는 소급 방지가 아니다.** 회수 이전에 이미 read된 값은 되돌릴 수
+  없다. 유출 의심 시 회수와 별개로 값 자체를 로테이션해야 한다.
+
 ## Audit log retention
 
 Every state-changing operation writes a row to `audit_log` with the

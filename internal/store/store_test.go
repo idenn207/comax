@@ -62,10 +62,10 @@ func TestOpenIsIdempotentForPragma(t *testing.T) {
 
 func TestIsUniqueViolationDetectsBothPhrasings(t *testing.T) {
 	cases := map[string]bool{
-		"UNIQUE constraint failed: projects.name":               true,
-		"constraint failed: UNIQUE constraint failed: x.y":      true,
-		"some other error":                                      false,
-		"":                                                      false,
+		"UNIQUE constraint failed: projects.name":          true,
+		"constraint failed: UNIQUE constraint failed: x.y": true,
+		"some other error": false,
+		"":                 false,
 	}
 	for msg, want := range cases {
 		got := isUniqueViolation(stubErr(msg))

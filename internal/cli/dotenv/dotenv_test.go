@@ -61,10 +61,10 @@ func TestParse_RejectsMissingEquals(t *testing.T) {
 
 func TestParse_RejectsInvalidKey(t *testing.T) {
 	for _, line := range []string{
-		"123BAD=v",   // starts with digit
+		"123BAD=v",     // starts with digit
 		"=missing-key", // empty key
-		"bad-key=v",  // hyphen not allowed
-		"a b=v",      // space in key
+		"bad-key=v",    // hyphen not allowed
+		"a b=v",        // space in key
 	} {
 		t.Run(line, func(t *testing.T) {
 			if _, err := Parse(strings.NewReader(line)); err == nil {

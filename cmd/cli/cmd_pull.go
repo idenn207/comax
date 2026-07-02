@@ -133,19 +133,37 @@ func loadContext(st *rootState, envFlag string, cmd *cobra.Command, quiet bool) 
 	if err != nil {
 		return credsLike{}, "", "", fmt.Errorf("resolve env: %w", err)
 	}
-	// Resolving project requires .secretrc (no flag override in M1 —
-	// operators who want a non-pinned project edit .secretrc).
-	rcCfg, rcErr := secretrc.Load(cwd)
-	if rcErr != nil && !errors.Is(rcErr, secretrc.ErrNotFound) {
-		return credsLike{}, "", "", fmt.Errorf("load .secretrc: %w", rcErr)
+	// Project resolution order: an explicit --project flag wins (M3), else
+	// fall back to .secretrc. The flag is defined only on commands that opt
+	// in (run/export) — CI runners pass it because no .secretrc is checked
+	// out on the runner; local dev pins the project via .secretrc.
+	project = projectFlagValue(cmd)
+	if project == "" {
+		rcCfg, rcErr := secretrc.Load(cwd)
+		if rcErr != nil && !errors.Is(rcErr, secretrc.ErrNotFound) {
+			return credsLike{}, "", "", fmt.Errorf("load .secretrc: %w", rcErr)
+		}
+		project = rcCfg.Project
 	}
-	if rcCfg.Project == "" {
-		return credsLike{}, "", "", fmt.Errorf("no project pinned; run `secret init --project NAME`")
+	if project == "" {
+		return credsLike{}, "", "", fmt.Errorf("no project pinned; pass --project NAME or run `secret init --project NAME`")
 	}
 	if !quiet {
 		fmt.Fprintf(cmd.ErrOrStderr(), "→ resolved env=%s via %s\n", res.Env, res.Source)
 	}
-	return credsLike{Server: c.Server, Token: c.Token}, rcCfg.Project, res.Env, nil
+	return credsLike{Server: c.Server, Token: c.Token}, project, res.Env, nil
+}
+
+// projectFlagValue returns the value of the optional --project flag when
+// the invoking command defines it, or "" otherwise. Keeping the lookup
+// here (rather than a loadContext parameter) means commands that don't
+// opt into --project (pull/push/get/set/diff) resolve project from
+// .secretrc unchanged, with no call-site churn.
+func projectFlagValue(cmd *cobra.Command) string {
+	if f := cmd.Flags().Lookup("project"); f != nil {
+		return f.Value.String()
+	}
+	return ""
 }
 
 // credsLike duplicates the fields we need from credentials.Credentials
