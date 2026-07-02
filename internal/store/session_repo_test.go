@@ -21,7 +21,7 @@ func makeHashes(seed string) (sessionHash, csrfHash []byte) {
 func mustSeedToken(t *testing.T, db DBTX, name string) ServiceToken {
 	t.Helper()
 	hash := sha256.Sum256([]byte("bearer:" + name))
-	tok, err := NewTokenRepo(db).Create(context.Background(), name, hash[:])
+	tok, err := NewTokenRepo(db).Create(context.Background(), name, hash[:], false)
 	if err != nil {
 		t.Fatalf("seed token: %v", err)
 	}

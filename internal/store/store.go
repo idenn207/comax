@@ -94,12 +94,19 @@ type SecretVersion struct {
 // ServiceToken is a bearer credential issued to a CI runner, CLI install
 // or dashboard session. Only the SHA-256 hash is persisted; the plaintext
 // is shown to the operator exactly once at creation time.
+//
+// IsAdmin gates token management: only admin tokens may issue or revoke
+// other tokens (M3). RevokedAt is nil for live tokens; a non-nil value
+// soft-revokes the credential — the bearer auth arm rejects it, and the
+// dashboard session arm terminates any live session bound to it.
 type ServiceToken struct {
 	ID         int64
 	Name       string
 	TokenHash  []byte
+	IsAdmin    bool
 	CreatedAt  time.Time
 	LastUsedAt *time.Time
+	RevokedAt  *time.Time
 }
 
 // AuditEntry records a state-changing operation. Append-only.
@@ -116,15 +123,15 @@ type AuditEntry struct {
 // a service token to a cookie-shaped credential plus a paired CSRF token;
 // only the SHA-256 hash of each plaintext is persisted.
 type DashboardSession struct {
-	ID           int64
-	TokenID      int64
-	SessionHash  []byte
-	CSRFHash     []byte
-	UserAgent    string
-	IPPrefix     string
-	CreatedAt    time.Time
-	ExpiresAt    time.Time
-	RevokedAt    *time.Time
+	ID          int64
+	TokenID     int64
+	SessionHash []byte
+	CSRFHash    []byte
+	UserAgent   string
+	IPPrefix    string
+	CreatedAt   time.Time
+	ExpiresAt   time.Time
+	RevokedAt   *time.Time
 }
 
 // Open returns a *sql.DB pointed at dsn with foreign keys enforced and
@@ -208,3 +215,13 @@ func unixSeconds(secs int64) time.Time {
 
 // nowUnix returns the current time as Unix seconds, the on-disk format.
 func nowUnix() int64 { return time.Now().UTC().Unix() }
+
+// boolToInt maps a Go bool to SQLite's 0/1 integer representation. Used
+// when binding boolean columns (e.g. service_tokens.is_admin) so we never
+// depend on driver-specific bool coercion.
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}

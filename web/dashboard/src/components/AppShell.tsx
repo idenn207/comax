@@ -40,7 +40,7 @@ export interface Crumb {
   params?: Record<string, string>;
 }
 
-export type ActiveSection = 'projects' | 'audit' | 'sessions';
+export type ActiveSection = 'projects' | 'audit' | 'sessions' | 'tokens' | 'actions';
 
 interface AppShellProps {
   active?: ActiveSection;
@@ -133,7 +133,19 @@ export function AppShell({ active, crumbs, children }: AppShellProps) {
           </div>
 
           <div className="nav-section" role="list">
+            <div className="nav-section-label">연동</div>
+            <SidebarLink to="/integrations/github-actions" active={active === 'actions'}>
+              <IconActions />
+              <span>GitHub Actions</span>
+            </SidebarLink>
+          </div>
+
+          <div className="nav-section" role="list">
             <div className="nav-section-label">설정</div>
+            <SidebarLink to="/settings/tokens" active={active === 'tokens'}>
+              <IconTokens />
+              <span>토큰</span>
+            </SidebarLink>
             <SidebarLink to="/settings/sessions" active={active === 'sessions'}>
               <IconSessions />
               <span>세션</span>
@@ -287,6 +299,38 @@ function IconSessions() {
           strokeWidth="1.5"
         />
         <path d="M8 20h8M12 16v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
+}
+
+function IconTokens() {
+  return (
+    <span className="nav-link-icon" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <circle cx="8" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.5" />
+        <path
+          d="M11.5 12H20M17 12v3M14 12v2"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function IconActions() {
+  return (
+    <span className="nav-link-icon" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="8.25" stroke="currentColor" strokeWidth="1.5" />
+        <path
+          d="M10 9.5l4 2.5-4 2.5v-5Z"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
       </svg>
     </span>
   );

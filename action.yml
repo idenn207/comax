@@ -1,0 +1,128 @@
+name: "Comax Secrets"
+description: >-
+  Inject Comax Secrets into a GitHub Actions job. Default mode is
+  process-env (secrets reach only the child command, never the job at
+  large); opt into job-wide github-env only when a later step needs the
+  vars in its own environment.
+author: "idenn207"
+
+inputs:
+  server:
+    description: "Comax Secrets server base URL (e.g. https://secrets.example.com)."
+    required: true
+  token:
+    description: "A Comax service token. Store it as a GitHub Actions secret (e.g. COMAX_TOKEN) and pass it via the with.token input."
+    required: true
+  project:
+    description: "Project name to resolve secrets from."
+    required: true
+  env:
+    description: "Environment name (e.g. prod, staging)."
+    required: true
+  run:
+    description: >-
+      Shell command to run with secrets injected as process env (default
+      mode). Required unless export-to is set. The secrets are visible only
+      to this command's child process — not to the rest of the job.
+    required: false
+    default: ""
+  export-to:
+    description: >-
+      OPT-IN job-wide injection. Set to 'github-env' to append the secrets
+      to $GITHUB_ENV for every later step (each value is registered with
+      ::add-mask::). Prefer the default process-env (run) — github-env
+      widens exposure to the whole job.
+    required: false
+    default: ""
+  cli-path:
+    description: >-
+      Path to a prebuilt `secret` CLI binary. REQUIRED in M3. The
+      release-download fallback (driven by cli-version) lands in M8.
+    required: true
+  cli-version:
+    description: "Reserved for M8: version to download when cli-path is omitted. Unused in M3."
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    # ----------------------------------------------------------------------
+    # 1. Acquire credentials into a ONE-SHOT file under $RUNNER_TEMP (R2-2).
+    #    The default ~/.config/comax path is never written; the cleanup step
+    #    deletes this file even on failure, so no credential survives the job.
+    #    The token is passed via env only — never on a command line — so it
+    #    is absent from process listings, and GitHub masks it in logs.
+    # ----------------------------------------------------------------------
+    - name: "Comax Secrets: acquire credentials"
+      shell: bash
+      env:
+        COMAX_SERVER: ${{ inputs.server }}
+        COMAX_TOKEN: ${{ inputs.token }}
+        COMAX_CLI_PATH: ${{ inputs.cli-path }}
+      run: |
+        set -euo pipefail
+        if [ -z "${COMAX_CLI_PATH}" ] || [ ! -x "${COMAX_CLI_PATH}" ]; then
+          echo "::error::comax-secrets: 'cli-path' is required in M3 and must point to an executable secret CLI (got: '${COMAX_CLI_PATH}'). The release-download fallback lands in M8." >&2
+          exit 1
+        fi
+        CREDS="${RUNNER_TEMP}/comax-creds.json"
+        # COMAX_TOKEN is exported to this step's env (above); the CLI reads
+        # the token from $COMAX_TOKEN so the plaintext never enters argv and
+        # cannot appear in a process listing (ps / /proc/<pid>/cmdline).
+        "${COMAX_CLI_PATH}" login \
+          --credentials "${CREDS}" \
+          --server "${COMAX_SERVER}"
+        # Share the creds path with the inject + cleanup steps.
+        echo "COMAX_CREDS=${CREDS}" >> "${GITHUB_ENV}"
+
+    # ----------------------------------------------------------------------
+    # 2. Inject. Default = process-env via `secret run` (job stays clean).
+    #    Opt-in = github-env via `secret export --format github-env`.
+    # ----------------------------------------------------------------------
+    - name: "Comax Secrets: inject"
+      shell: bash
+      env:
+        COMAX_CLI_PATH: ${{ inputs.cli-path }}
+        COMAX_PROJECT: ${{ inputs.project }}
+        COMAX_ENV: ${{ inputs.env }}
+        COMAX_RUN: ${{ inputs.run }}
+        COMAX_EXPORT_TO: ${{ inputs.export-to }}
+      run: |
+        set -euo pipefail
+        if [ -n "${COMAX_EXPORT_TO}" ]; then
+          if [ "${COMAX_EXPORT_TO}" != "github-env" ]; then
+            echo "::error::comax-secrets: 'export-to' must be 'github-env' when set (got '${COMAX_EXPORT_TO}')." >&2
+            exit 1
+          fi
+          # OPT-IN job-wide: heredoc blocks appended to $GITHUB_ENV + masks.
+          "${COMAX_CLI_PATH}" export \
+            --credentials "${COMAX_CREDS}" \
+            --project "${COMAX_PROJECT}" \
+            --env "${COMAX_ENV}" \
+            --format github-env \
+            --quiet
+        else
+          if [ -z "${COMAX_RUN}" ]; then
+            echo "::error::comax-secrets: provide 'run' (default process-env mode) or set 'export-to: github-env'." >&2
+            exit 1
+          fi
+          # Default mode: secrets injected ONLY into the child command's env.
+          "${COMAX_CLI_PATH}" run \
+            --credentials "${COMAX_CREDS}" \
+            --project "${COMAX_PROJECT}" \
+            --env "${COMAX_ENV}" \
+            --quiet \
+            -- bash -c "${COMAX_RUN}"
+        fi
+
+    # ----------------------------------------------------------------------
+    # 3. Cleanup (R2-2). Always remove the one-shot credential file, even on
+    #    failure, so nothing is left on the runner disk.
+    # ----------------------------------------------------------------------
+    - name: "Comax Secrets: cleanup credentials"
+      if: always()
+      shell: bash
+      run: |
+        set -euo pipefail
+        rm -f "${COMAX_CREDS:-${RUNNER_TEMP}/comax-creds.json}"

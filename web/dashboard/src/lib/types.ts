@@ -112,3 +112,32 @@ export interface Session {
   expires_at: string;
   is_current: boolean;
 }
+
+/**
+ * One row of the /settings/tokens table.
+ *
+ * Mirrors the server's tokenView shape (handlers_tokens.go). The token
+ * hash never appears — a listing carries only non-secret metadata.
+ * revoked_at is present (non-null) once a token is soft-revoked, so the
+ * row can badge it distinctly; last_used_at is absent until first use.
+ */
+export interface Token {
+  id: number;
+  name: string;
+  is_admin: boolean;
+  created_at: string;
+  last_used_at?: string;
+  revoked_at?: string;
+}
+
+/**
+ * Response of POST /api/v1/tokens (tokenCreatedView). `token` is the
+ * plaintext bearer, shown exactly once — the server keeps only its hash.
+ */
+export interface CreatedToken {
+  token: string;
+  id: number;
+  name: string;
+  is_admin: boolean;
+  created_at: string;
+}

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -27,8 +28,20 @@ func newLoginCmd(st *rootState) *cobra.Command {
 		Use:   "login --server URL --token TOKEN",
 		Short: "Save credentials for a Comax Secrets server",
 		Long: `Verify the server URL + token and save them to the credentials file.
-The token is shown exactly once by the server at /bootstrap; pass it here.`,
+The token is shown exactly once by the server at /bootstrap; pass it via
+--token or the $COMAX_TOKEN environment variable.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Fall back to $COMAX_TOKEN when --token is omitted so callers
+			// (notably the GitHub Action) can keep the plaintext off the
+			// command line and out of process listings. The flag wins when
+			// both are set.
+			if token == "" {
+				token = os.Getenv("COMAX_TOKEN")
+			}
+			if token == "" {
+				return fmt.Errorf("token is required: pass --token or set $COMAX_TOKEN")
+			}
+
 			ctx, cancel := context.WithTimeout(cmd.Context(), 10*time.Second)
 			defer cancel()
 
@@ -53,9 +66,8 @@ The token is shown exactly once by the server at /bootstrap; pass it here.`,
 		},
 	}
 	cmd.Flags().StringVar(&server, "server", "", "server base URL (required)")
-	cmd.Flags().StringVar(&token, "token", "", "bearer token (required)")
+	cmd.Flags().StringVar(&token, "token", "", "bearer token (or set $COMAX_TOKEN)")
 	_ = cmd.MarkFlagRequired("server")
-	_ = cmd.MarkFlagRequired("token")
 	return cmd
 }
 

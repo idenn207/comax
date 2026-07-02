@@ -44,7 +44,7 @@ func TestRepoMethodsErrorOnClosedDB(t *testing.T) {
 		}},
 		{"Version.ListBySecret", func() error { _, err := NewVersionRepo(db).ListBySecret(ctx, 1); return err }},
 		{"Token.Count", func() error { _, err := NewTokenRepo(db).Count(ctx); return err }},
-		{"Token.Create", func() error { _, err := NewTokenRepo(db).Create(ctx, "x", nil); return err }},
+		{"Token.Create", func() error { _, err := NewTokenRepo(db).Create(ctx, "x", nil, false); return err }},
 		{"Token.ByHash", func() error { _, err := NewTokenRepo(db).ByHash(ctx, nil); return err }},
 		{"Token.TouchLastUsed", func() error { return NewTokenRepo(db).TouchLastUsed(ctx, 1) }},
 		{"Audit.Append", func() error { _, err := NewAuditRepo(db).Append(ctx, nil, "x", "x", ""); return err }},
