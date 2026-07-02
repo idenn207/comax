@@ -59,6 +59,7 @@ func newRootCmd() *cobra.Command {
 		newRunCmd(st),
 		newExportCmd(st),
 		newTokenCmd(st),
+		newWebhookCmd(st),
 	)
 
 	// Silence cobra's "unknown command" usage dump — we want stderr to

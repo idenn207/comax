@@ -40,7 +40,7 @@ export interface Crumb {
   params?: Record<string, string>;
 }
 
-export type ActiveSection = 'projects' | 'audit' | 'sessions' | 'tokens' | 'actions';
+export type ActiveSection = 'projects' | 'audit' | 'sessions' | 'tokens' | 'actions' | 'webhooks';
 
 interface AppShellProps {
   active?: ActiveSection;
@@ -137,6 +137,10 @@ export function AppShell({ active, crumbs, children }: AppShellProps) {
             <SidebarLink to="/integrations/github-actions" active={active === 'actions'}>
               <IconActions />
               <span>GitHub Actions</span>
+            </SidebarLink>
+            <SidebarLink to="/integrations/webhooks" active={active === 'webhooks'}>
+              <IconWebhooks />
+              <span>웹훅</span>
             </SidebarLink>
           </div>
 
@@ -329,6 +333,22 @@ function IconActions() {
           d="M10 9.5l4 2.5-4 2.5v-5Z"
           stroke="currentColor"
           strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
+function IconWebhooks() {
+  return (
+    <span className="nav-link-icon" aria-hidden="true">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <path
+          d="M8.5 9a3.5 3.5 0 1 1 4.9 3.2l2.3 4M15.5 15a3.5 3.5 0 1 1-3.4 4.4M9 15.5a3.5 3.5 0 1 1-2-6.3"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
           strokeLinejoin="round"
         />
       </svg>

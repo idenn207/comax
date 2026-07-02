@@ -1,6 +1,6 @@
 # 구현 리포트: GitHub Actions 통합 (M3)
 
-**Plan**: `.claude/plans/comax-secrets-m3-github-actions.plan.md`
+**Plan**: `.claude/plans/completed/comax-secrets-m3-github-actions.plan.md`
 **Branch**: `feat/comax-secrets-m3-github-actions`
 **Source PRD**: `.claude/prds/comax-secrets.prd.md` (Milestone #3)
 

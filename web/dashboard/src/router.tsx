@@ -18,6 +18,7 @@ import { ProjectPage } from './pages/Project';
 import { ProjectsPage } from './pages/Projects';
 import { SessionsPage } from './pages/Sessions';
 import { TokensPage } from './pages/Tokens';
+import { WebhooksPage } from './pages/Webhooks';
 
 /**
  * Code-based router. Routes:
@@ -141,6 +142,13 @@ const integrationsActionsRoute = createRoute({
   component: ActionsPage,
 });
 
+const integrationsWebhooksRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/integrations/webhooks',
+  beforeLoad: requireAuth,
+  component: WebhooksPage,
+});
+
 // eslint-disable-next-line react-refresh/only-export-components
 function ProjectRouteComponent() {
   const { project } = useParams({ from: '/projects/$project' });
@@ -176,6 +184,7 @@ const routeTree = rootRoute.addChildren([
   settingsSessionsRoute,
   settingsTokensRoute,
   integrationsActionsRoute,
+  integrationsWebhooksRoute,
 ]);
 
 export const router = createRouter({

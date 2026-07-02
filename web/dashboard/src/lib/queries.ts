@@ -20,6 +20,7 @@ import type {
   AuditMeta,
   AuditPage,
   CreatedToken,
+  CreatedWebhook,
   EnvDiff,
   Environment,
   Project,
@@ -28,6 +29,8 @@ import type {
   SecretVersionListEntry,
   Session,
   Token,
+  Webhook,
+  WebhookDelivery,
 } from './types';
 
 const encode = encodeURIComponent;
@@ -63,6 +66,8 @@ export const queryKeys = {
     ] as const,
   sessions: () => ['sessions'] as const,
   tokens: () => ['tokens'] as const,
+  webhooks: () => ['webhooks'] as const,
+  deliveries: (id: number) => ['webhooks', id, 'deliveries'] as const,
 } as const;
 
 export async function listProjects(signal?: AbortSignal): Promise<Project[]> {
@@ -243,6 +248,43 @@ export async function createToken(name: string): Promise<CreatedToken> {
 
 export async function revokeToken(id: number): Promise<void> {
   await apiFetch<void>(`/api/v1/tokens/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Webhook management (admin-only server-side). A non-admin caller receives an
+ * ApiError with code 'forbidden'; the Webhooks page renders an "admin only"
+ * notice rather than an error banner, mirroring the Tokens page.
+ */
+export interface CreateWebhookInput {
+  project: string;
+  env?: string;
+  url: string;
+  events?: string[];
+}
+
+export async function listWebhooks(signal?: AbortSignal): Promise<Webhook[]> {
+  return apiFetch<Webhook[]>('/api/v1/webhooks', { signal });
+}
+
+export async function createWebhook(input: CreateWebhookInput): Promise<CreatedWebhook> {
+  return apiFetch<CreatedWebhook>('/api/v1/webhooks', { method: 'POST', body: input });
+}
+
+export async function deleteWebhook(id: number): Promise<void> {
+  await apiFetch<void>(`/api/v1/webhooks/${id}`, { method: 'DELETE' });
+}
+
+/**
+ * Soft-disable (enabled=false) or re-enable (enabled=true) a webhook. A
+ * disabled webhook keeps its registration and delivery history but stops
+ * receiving new events — the reversible alternative to delete.
+ */
+export async function setWebhookEnabled(id: number, enabled: boolean): Promise<void> {
+  await apiFetch<void>(`/api/v1/webhooks/${id}`, { method: 'PATCH', body: { enabled } });
+}
+
+export async function listDeliveries(id: number, signal?: AbortSignal): Promise<WebhookDelivery[]> {
+  return apiFetch<WebhookDelivery[]>(`/api/v1/webhooks/${id}/deliveries`, { signal });
 }
 
 export async function listAudit(filter: AuditFilter, signal?: AbortSignal): Promise<AuditPage> {

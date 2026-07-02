@@ -13,6 +13,7 @@ import (
 	"github.com/idenn207/comax-secrets/internal/crypto"
 	"github.com/idenn207/comax-secrets/internal/secret"
 	"github.com/idenn207/comax-secrets/internal/store"
+	"github.com/idenn207/comax-secrets/internal/webhook"
 )
 
 // secretView is the resolved-plaintext shape returned by GET endpoints.
@@ -204,6 +205,20 @@ func (s *Server) handlePutSecret(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "audit failed", s.logger)
 		return
 	}
+	// Transactional outbox: enqueue deliveries for matching webhooks in the
+	// SAME tx as the change + audit, so a rolled-back write leaves no delivery.
+	if err := enqueueWebhooks(r, tx, p.ID, e.ID, store.EventSecretUpsert, webhook.Payload{
+		Action:    store.EventSecretUpsert,
+		Project:   p.Name,
+		Env:       e.Name,
+		Key:       keyName,
+		Version:   up.Secret.Version,
+		Timestamp: time.Now().Unix(),
+	}); err != nil {
+		s.logger.Error("enqueue webhooks: upsert", slog.String("err", err.Error()))
+		writeError(w, http.StatusInternalServerError, "internal", "webhook enqueue failed", s.logger)
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		s.logger.Error("commit secret upsert", slog.String("err", err.Error()))
 		writeError(w, http.StatusInternalServerError, "internal", "commit failed", s.logger)
@@ -329,6 +344,18 @@ func (s *Server) handleRollbackSecret(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal", "audit failed", s.logger)
 		return
 	}
+	if err := enqueueWebhooks(r, tx, p.ID, e.ID, store.EventSecretRollback, webhook.Payload{
+		Action:    store.EventSecretRollback,
+		Project:   p.Name,
+		Env:       e.Name,
+		Key:       keyName,
+		Version:   up.Secret.Version,
+		Timestamp: time.Now().Unix(),
+	}); err != nil {
+		s.logger.Error("enqueue webhooks: rollback", slog.String("err", err.Error()))
+		writeError(w, http.StatusInternalServerError, "internal", "webhook enqueue failed", s.logger)
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		s.logger.Error("rollback: commit", slog.String("err", err.Error()))
 		writeError(w, http.StatusInternalServerError, "internal", "commit failed", s.logger)
@@ -381,6 +408,17 @@ func (s *Server) handleDeleteSecret(w http.ResponseWriter, r *http.Request) {
 	if err := appendAudit(r, tx, "secret.delete", auditTarget); err != nil {
 		s.logger.Error("delete: audit", slog.String("err", err.Error()))
 		writeError(w, http.StatusInternalServerError, "internal", "audit failed", s.logger)
+		return
+	}
+	if err := enqueueWebhooks(r, tx, p.ID, e.ID, store.EventSecretDelete, webhook.Payload{
+		Action:    store.EventSecretDelete,
+		Project:   p.Name,
+		Env:       e.Name,
+		Key:       keyName,
+		Timestamp: time.Now().Unix(),
+	}); err != nil {
+		s.logger.Error("enqueue webhooks: delete", slog.String("err", err.Error()))
+		writeError(w, http.StatusInternalServerError, "internal", "webhook enqueue failed", s.logger)
 		return
 	}
 	if err := tx.Commit(); err != nil {

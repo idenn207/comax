@@ -42,6 +42,7 @@ import (
 	"github.com/idenn207/comax-secrets/internal/server/dashboard"
 	"github.com/idenn207/comax-secrets/internal/store"
 	"github.com/idenn207/comax-secrets/internal/version"
+	"github.com/idenn207/comax-secrets/internal/webhook"
 )
 
 // config is the resolved runtime configuration. Each field has a flag
@@ -55,6 +56,7 @@ type config struct {
 	printVersion     bool
 	healthCheck      bool
 	healthURL        string
+	webhookPoll      time.Duration
 }
 
 func main() {
@@ -115,11 +117,16 @@ func run(args []string, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	webhookPolicy, err := webhook.PolicyFromEnv()
+	if err != nil {
+		return fmt.Errorf("webhook policy: %w", err)
+	}
 	srv := server.NewServer(server.Options{
-		DB:     db,
-		Keys:   keys,
-		Logger: logger,
-		SPAFS:  spaFS,
+		DB:            db,
+		Keys:          keys,
+		Logger:        logger,
+		SPAFS:         spaFS,
+		WebhookPolicy: webhookPolicy,
 	})
 	httpSrv := &http.Server{
 		Addr:              cfg.listenAddr,
@@ -152,6 +159,18 @@ func run(args []string, stdout, stderr io.Writer) error {
 	// that promise is satisfied by *this* goroutine.
 	go runPruneSweeper(ctx, store.NewSessionRepo(db), time.Hour, logger)
 
+	// Webhook delivery worker: reclaims stale leases, atomically claims due
+	// outbox rows, signs each payload with the webhook's sealed HMAC key, and
+	// POSTs through the SSRF-hardened client. The same ctx cancellation that
+	// stops the sweeper drives its graceful stop.
+	webhookWorker := webhook.NewWorker(webhook.Options{
+		DB:     db,
+		Keys:   keys,
+		Policy: webhookPolicy,
+		Logger: logger,
+	})
+	go webhookWorker.Run(ctx, cfg.webhookPoll)
+
 	select {
 	case <-ctx.Done():
 		logger.Info("shutdown signal received")
@@ -179,6 +198,7 @@ func parseFlags(args []string, stderr io.Writer) (config, error) {
 		masterKeyPath:    envOr("COMAX_MASTER_KEY_FILE", "./keys/master.key"),
 		autoGenKey:       envBool("COMAX_AUTO_GENERATE_KEY", true),
 		dashboardEnabled: envBool("COMAX_DASHBOARD_ENABLED", true),
+		webhookPoll:      envDurationOr("COMAX_WEBHOOK_POLL", 10*time.Second),
 	}
 	fs := flag.NewFlagSet("secret-server", flag.ContinueOnError)
 	fs.SetOutput(stderr)
@@ -189,6 +209,8 @@ func parseFlags(args []string, stderr io.Writer) (config, error) {
 	fs.BoolVar(&cfg.dashboardEnabled, "dashboard-enabled", cfg.dashboardEnabled,
 		"Serve the embedded dashboard SPA at / (env: COMAX_DASHBOARD_ENABLED). "+
 			"Has no effect on /api or /healthz. Always off when the binary was built without -tags embed_dashboard.")
+	fs.DurationVar(&cfg.webhookPoll, "webhook-poll-interval", cfg.webhookPoll,
+		"How often the webhook delivery worker polls the outbox (env: COMAX_WEBHOOK_POLL)")
 	fs.BoolVar(&cfg.printVersion, "version", false, "Print version and exit")
 	fs.BoolVar(&cfg.healthCheck, "health", false, "Probe --health-url and exit 0 on HTTP 200")
 	fs.StringVar(&cfg.healthURL, "health-url", envOr("COMAX_HEALTH_URL", "http://127.0.0.1:8080/healthz"),
@@ -237,6 +259,20 @@ func envBool(name string, fallback bool) bool {
 	default:
 		return false
 	}
+}
+
+// envDurationOr parses a Go duration env var (e.g. "10s", "1m"); an empty or
+// unparseable value defers to fallback.
+func envDurationOr(name string, fallback time.Duration) time.Duration {
+	v, ok := os.LookupEnv(name)
+	if !ok || v == "" {
+		return fallback
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		return fallback
+	}
+	return d
 }
 
 // resolveDashboardFS returns the embedded SPA filesystem when both
