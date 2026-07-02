@@ -368,7 +368,7 @@ func TestRunPruneSweeper_DeletesExpiredOnTick(t *testing.T) {
 	// hour in the past, which the sweeper's cutoff = time.Now() catches
 	// immediately.
 	tokHash := sha256.Sum256([]byte("bearer:prune"))
-	tok, err := store.NewTokenRepo(db).Create(context.Background(), "prune", tokHash[:])
+	tok, err := store.NewTokenRepo(db).Create(context.Background(), "prune", tokHash[:], false)
 	if err != nil {
 		t.Fatalf("token create: %v", err)
 	}

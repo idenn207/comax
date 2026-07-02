@@ -354,10 +354,10 @@ func TestDeleteSecret_ReactivatedByPut(t *testing.T) {
 
 func TestListAudit_ReturnsEntriesNewestFirst(t *testing.T) {
 	ts := newTestServer(t)
-	ts.bootstrap(t) // +1 audit
-	mustCreate(t, ts, "/api/v1/projects", map[string]string{"name": "app"}) // +1
+	ts.bootstrap(t)                                                                  // +1 audit
+	mustCreate(t, ts, "/api/v1/projects", map[string]string{"name": "app"})          // +1
 	mustCreate(t, ts, "/api/v1/projects/app/envs", map[string]string{"name": "dev"}) // +1
-	seedSecret(t, ts, "app", "dev", "K", "v") // +1
+	seedSecret(t, ts, "app", "dev", "K", "v")                                        // +1
 
 	status, env := ts.do(t, http.MethodGet, "/api/v1/audit", nil)
 	if status != http.StatusOK {

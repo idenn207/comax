@@ -28,6 +28,12 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/projects", s.handleListProjects)
 	mux.HandleFunc("POST /api/v1/projects", s.handleCreateProject)
 
+	// Service-token management (admin-only; enforced inside each handler
+	// via requireAdmin). POST returns the plaintext exactly once.
+	mux.HandleFunc("POST /api/v1/tokens", s.handleCreateToken)
+	mux.HandleFunc("GET /api/v1/tokens", s.handleListTokens)
+	mux.HandleFunc("DELETE /api/v1/tokens/{id}", s.handleRevokeToken)
+
 	mux.HandleFunc("GET /api/v1/projects/{p}/envs", s.handleListEnvs)
 	mux.HandleFunc("POST /api/v1/projects/{p}/envs", s.handleCreateEnv)
 	mux.HandleFunc("GET /api/v1/projects/{p}/envs/{e}/diff", s.handleDiffEnvs)

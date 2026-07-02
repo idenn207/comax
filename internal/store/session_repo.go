@@ -74,10 +74,10 @@ func (r *SessionRepo) Create(ctx context.Context, in SessionCreateInput) (Dashbo
 func (r *SessionRepo) ByHash(ctx context.Context, sessionHash []byte) (DashboardSession, error) {
 	now := nowUnix()
 	var (
-		s                                          DashboardSession
-		userAgent, ipPrefix                        sql.NullString
-		createdAt, expiresAt                       int64
-		revokedAt                                  sql.NullInt64
+		s                    DashboardSession
+		userAgent, ipPrefix  sql.NullString
+		createdAt, expiresAt int64
+		revokedAt            sql.NullInt64
 	)
 	err := r.db.QueryRowContext(ctx,
 		`SELECT id, token_id, session_hash, csrf_hash, user_agent, ip_prefix,

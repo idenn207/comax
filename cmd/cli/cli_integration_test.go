@@ -104,6 +104,55 @@ func TestLogin_HappyPath(t *testing.T) {
 	}
 }
 
+func TestLogin_ReadsTokenFromEnv(t *testing.T) {
+	srv, token := startTestServer(t)
+	credPath := filepath.Join(t.TempDir(), "creds.json")
+	// H1: with --token omitted, the CLI reads $COMAX_TOKEN so the plaintext
+	// never has to appear on the command line — the GitHub Action relies on
+	// this to keep the token out of process listings.
+	t.Setenv("COMAX_TOKEN", token)
+
+	root := newRootCmd()
+	root.SetOut(new(bytes.Buffer))
+	root.SetErr(new(bytes.Buffer))
+	root.SetArgs([]string{
+		"--credentials", credPath,
+		"login",
+		"--server", srv.URL,
+	})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("login via $COMAX_TOKEN: %v", err)
+	}
+	got, err := credentials.LoadFrom(credPath)
+	if err != nil {
+		t.Fatalf("LoadFrom: %v", err)
+	}
+	if got.Token != token {
+		t.Errorf("saved token = %q; want %q (read from $COMAX_TOKEN)", got.Token, token)
+	}
+}
+
+func TestLogin_MissingTokenErrors(t *testing.T) {
+	srv, _ := startTestServer(t)
+	credPath := filepath.Join(t.TempDir(), "creds.json")
+	t.Setenv("COMAX_TOKEN", "") // neither --token nor env supplies a token
+
+	root := newRootCmd()
+	root.SetOut(new(bytes.Buffer))
+	root.SetErr(new(bytes.Buffer))
+	root.SetArgs([]string{
+		"--credentials", credPath,
+		"login",
+		"--server", srv.URL,
+	})
+	if err := root.Execute(); err == nil {
+		t.Fatal("login without --token or $COMAX_TOKEN returned nil; want error")
+	}
+	if _, err := os.Stat(credPath); err == nil {
+		t.Errorf("credentials file exists after tokenless login at %s", credPath)
+	}
+}
+
 func TestLogin_RejectsBadToken(t *testing.T) {
 	srv, _ := startTestServer(t)
 	credPath := filepath.Join(t.TempDir(), "creds.json")

@@ -35,6 +35,23 @@ test.describe('dashboard a11y (WCAG 2.2 AA)', () => {
     await checkA11y(page);
   });
 
+  // The bootstrap token is admin, so /settings/tokens renders the full
+  // table (M3). A non-admin session would show the "admin only" notice
+  // instead; both paths must pass axe.
+  test('/settings/tokens (M3) passes axe', async ({ page }) => {
+    await loginWithBootstrap(page);
+    await page.goto('/settings/tokens');
+    await expect(page.getByRole('heading', { name: '서비스 토큰' })).toBeVisible();
+    await checkA11y(page);
+  });
+
+  test('/integrations/github-actions (M3) passes axe', async ({ page }) => {
+    await loginWithBootstrap(page);
+    await page.goto('/integrations/github-actions');
+    await expect(page.getByRole('heading', { name: 'GitHub Actions', exact: true })).toBeVisible();
+    await checkA11y(page);
+  });
+
   // The env-vs-env diff page renders a "select an env" empty state when
   // there is nothing to compare against — that's the path we check from
   // the bootstrap, since the audit/empty-state path is the most a11y-

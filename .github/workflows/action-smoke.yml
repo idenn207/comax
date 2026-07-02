@@ -1,0 +1,191 @@
+name: action-smoke
+
+# M3 acceptance proof for the composite action (action.yml). Boots an
+# API-only server, issues an admin→non-admin token, seeds a canary secret,
+# and proves the four M3 security properties end-to-end:
+#   (a) process-env isolation + no plaintext leak (R2-3)
+#   (b) credential non-persistence (R2-2)
+#   (c) github-env opt-in masking (job-wide injection)
+#   (d) soft revoke → the revoked token no longer authenticates
+on:
+  push:
+    branches: [main, master, "feat/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  action-smoke:
+    name: action smoke (M3 acceptance)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: build server + CLI
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          CGO_ENABLED=0 go build -trimpath -o bin/secret-server ./cmd/server
+          CGO_ENABLED=0 go build -trimpath -o bin/secret        ./cmd/cli
+          echo "SECRET=${GITHUB_WORKSPACE}/bin/secret" >> "$GITHUB_ENV"
+
+      - name: start server + capture bootstrap admin token
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/smoke"
+          export COMAX_LISTEN=":8080"
+          export COMAX_DB_PATH="${RUNNER_TEMP}/smoke/secrets.db"
+          export COMAX_MASTER_KEY_FILE="${RUNNER_TEMP}/smoke/master.key"
+          # API-only server: auto-generates the key, migrates, and prints the
+          # bootstrap admin token to stdout exactly once. nohup so it survives
+          # past this step's shell.
+          nohup "${GITHUB_WORKSPACE}/bin/secret-server" > "${RUNNER_TEMP}/server.log" 2>&1 &
+          SERVER_PID=$!
+          disown || true
+          echo "SERVER_PID=${SERVER_PID}" >> "$GITHUB_ENV"
+
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/healthz >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:8080/healthz >/dev/null \
+            || { echo "server did not become healthy"; cat "${RUNNER_TEMP}/server.log"; exit 1; }
+
+          # Match the stdout banner uniquely via "shown ONCE": the slog line
+          # "bootstrap admin token issued" (stderr, no plaintext) is merged
+          # into the same log and would otherwise confuse a broader grep.
+          ADMIN_TOKEN=$(grep -A1 'shown ONCE' "${RUNNER_TEMP}/server.log" | tail -1 | tr -d '[:space:]')
+          if [ -z "${ADMIN_TOKEN}" ]; then
+            echo "failed to capture bootstrap token"; cat "${RUNNER_TEMP}/server.log"; exit 1
+          fi
+          echo "::add-mask::${ADMIN_TOKEN}"
+          echo "ADMIN_TOKEN=${ADMIN_TOKEN}" >> "$GITHUB_ENV"
+
+      - name: seed project/env/secret + issue non-admin ci token
+        run: |
+          set -euo pipefail
+          ADMIN_CREDS="${RUNNER_TEMP}/admin-creds.json"
+          echo "ADMIN_CREDS=${ADMIN_CREDS}" >> "$GITHUB_ENV"
+
+          # Explicit --credentials everywhere → the default ~/.config/comax
+          # path is never written (the (b) assertion depends on this).
+          "$SECRET" login --credentials "$ADMIN_CREDS" --server http://localhost:8080 --token "$ADMIN_TOKEN"
+
+          # Fixed canary; register a mask so it can never surface in a log.
+          CANARY="canary-smoke-value-do-not-print"
+          echo "::add-mask::${CANARY}"
+          echo "CANARY=${CANARY}" >> "$GITHUB_ENV"
+
+          # Seed project 'smoke' + env 'ci' (init writes .secretrc + creates
+          # them server-side), then the canary secret.
+          "$SECRET" init --credentials "$ADMIN_CREDS" --project smoke --envs ci --default-env ci
+          "$SECRET" set  --credentials "$ADMIN_CREDS" --env ci "TESTKEY=${CANARY}" --quiet
+
+          # Admin issues a NON-admin ci token; capture only the plaintext (stdout).
+          CI_TOKEN=$("$SECRET" token create --credentials "$ADMIN_CREDS" --name ci 2>/dev/null)
+          echo "::add-mask::${CI_TOKEN}"
+          echo "CI_TOKEN=${CI_TOKEN}" >> "$GITHUB_ENV"
+
+      # ---------------------------------------------------------------------
+      # (a) process-env isolation via the composite action + no plaintext leak
+      # ---------------------------------------------------------------------
+      - name: "(a) action run-mode injects the canary into the child only"
+        uses: ./
+        with:
+          server: http://localhost:8080
+          token: ${{ env.CI_TOKEN }}
+          project: smoke
+          env: ci
+          cli-path: ${{ github.workspace }}/bin/secret
+          # Non-echo canary check: compares against $CANARY (job env) without
+          # printing the value. CANARY reaches the child via os.Environ() merge.
+          run: 'if [ "$TESTKEY" = "$CANARY" ]; then echo "canary matched (value not printed)"; else echo "canary MISMATCH"; exit 1; fi'
+
+      - name: "(a) TESTKEY absent in a later job step (process-env isolation)"
+        run: |
+          set -euo pipefail
+          if [ -n "${TESTKEY:-}" ]; then
+            echo "FAIL: TESTKEY leaked into the job env — process-env isolation broken"; exit 1
+          fi
+          echo "PASS: process-env kept TESTKEY out of the job env"
+
+      - name: "(a/R2-3) process-env run never prints the plaintext"
+        run: |
+          set -euo pipefail
+          CI_CREDS="${RUNNER_TEMP}/ci-creds.json"
+          "$SECRET" login --credentials "$CI_CREDS" --server http://localhost:8080 --token "$CI_TOKEN"
+          "$SECRET" run --credentials "$CI_CREDS" --project smoke --env ci --quiet \
+            -- bash -c 'if [ "$TESTKEY" = "$CANARY" ]; then echo CANARY_OK; else echo CANARY_FAIL; exit 1; fi' \
+            > "${RUNNER_TEMP}/run.log" 2>&1
+          cat "${RUNNER_TEMP}/run.log"
+          grep -q CANARY_OK "${RUNNER_TEMP}/run.log" || { echo "canary check failed"; exit 1; }
+          if grep -qF "$CANARY" "${RUNNER_TEMP}/run.log"; then
+            echo "FAIL(R2-3): plaintext canary appeared in the run log"; exit 1
+          fi
+          echo "PASS(R2-3): no plaintext canary in the process-env run log"
+
+      # ---------------------------------------------------------------------
+      # (b) credential non-persistence (R2-2)
+      # ---------------------------------------------------------------------
+      - name: "(b/R2-2) no default-path credential; runner-temp cred cleaned up"
+        run: |
+          set -euo pipefail
+          if [ -f "$HOME/.config/comax/credentials.json" ]; then
+            echo "FAIL(R2-2): a default credential file was created at ~/.config/comax"; exit 1
+          fi
+          if [ -f "${RUNNER_TEMP}/comax-creds.json" ]; then
+            echo "FAIL(R2-2): the action's one-shot credential survived cleanup"; exit 1
+          fi
+          echo "PASS(R2-2): default path clean and the runner-temp credential was cleaned up"
+
+      # ---------------------------------------------------------------------
+      # (c) github-env opt-in masking (job-wide injection)
+      # ---------------------------------------------------------------------
+      - name: "(c) action github-env opt-in injects job-wide"
+        uses: ./
+        with:
+          server: http://localhost:8080
+          token: ${{ env.CI_TOKEN }}
+          project: smoke
+          env: ci
+          cli-path: ${{ github.workspace }}/bin/secret
+          export-to: github-env
+
+      - name: "(c) TESTKEY present job-wide (masked) after github-env"
+        run: |
+          set -euo pipefail
+          if [ "${TESTKEY:-}" != "$CANARY" ]; then
+            echo "FAIL: github-env did not inject TESTKEY job-wide"; exit 1
+          fi
+          echo "PASS: github-env injected TESTKEY job-wide (value masked in logs)"
+
+      # ---------------------------------------------------------------------
+      # (d) soft revoke → the revoked token no longer authenticates
+      # ---------------------------------------------------------------------
+      - name: "(d) revoked token is rejected"
+        run: |
+          set -euo pipefail
+          CI_ID=$("$SECRET" token list --credentials "$ADMIN_CREDS" | awk '$2=="ci"{print $1}')
+          if [ -z "${CI_ID}" ]; then echo "could not find ci token id"; exit 1; fi
+          "$SECRET" token revoke --credentials "$ADMIN_CREDS" --id "$CI_ID"
+          # login verifies the token against the API; a revoked token must fail.
+          if "$SECRET" login --credentials "${RUNNER_TEMP}/revoked-check.json" --server http://localhost:8080 --token "$CI_TOKEN"; then
+            echo "FAIL(d): revoked token still authenticates"; exit 1
+          fi
+          echo "PASS(d): revoked token rejected"
+
+      - name: dump server log on failure
+        if: failure()
+        run: cat "${RUNNER_TEMP}/server.log" || true
+
+      - name: stop server
+        if: always()
+        run: kill "${SERVER_PID}" 2>/dev/null || true

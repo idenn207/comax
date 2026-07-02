@@ -315,8 +315,8 @@ func TestSecrets_404OnMissingKey(t *testing.T) {
 // is what proves the audit ring is wired.
 func TestAuditWritten(t *testing.T) {
 	ts := newTestServer(t)
-	ts.bootstrap(t) // +1 audit row
-	mustCreate(t, ts, "/api/v1/projects", map[string]string{"name": "comax"}) // +1
+	ts.bootstrap(t)                                                                    // +1 audit row
+	mustCreate(t, ts, "/api/v1/projects", map[string]string{"name": "comax"})          // +1
 	mustCreate(t, ts, "/api/v1/projects/comax/envs", map[string]string{"name": "dev"}) // +1
 	ts.do(t, http.MethodPut, "/api/v1/projects/comax/envs/dev/secrets/K",
 		map[string]string{"value": "v"}) // +1

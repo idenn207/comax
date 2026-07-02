@@ -131,11 +131,11 @@ func (s *Server) handleCreateEnv(w http.ResponseWriter, r *http.Request) {
 // the URL path; rhs is the env named by `?against=<name>`. Each list is
 // sorted alphabetically so the dashboard renders deterministically.
 type envDiff struct {
-	Lhs     string            `json:"lhs"`
-	Rhs     string            `json:"rhs"`
-	Added   []string          `json:"added"`   // keys present in lhs but not rhs
-	Removed []string          `json:"removed"` // keys present in rhs but not lhs
-	Changed []envDiffChanged  `json:"changed"` // keys present in both with different resolved plaintext
+	Lhs     string           `json:"lhs"`
+	Rhs     string           `json:"rhs"`
+	Added   []string         `json:"added"`   // keys present in lhs but not rhs
+	Removed []string         `json:"removed"` // keys present in rhs but not lhs
+	Changed []envDiffChanged `json:"changed"` // keys present in both with different resolved plaintext
 }
 
 // envDiffChanged carries the per-key version numbers on each side so the

@@ -63,8 +63,10 @@ CREATE TABLE IF NOT EXISTS service_tokens (
     id           INTEGER PRIMARY KEY,
     name         TEXT NOT NULL UNIQUE,
     token_hash   BLOB NOT NULL UNIQUE,       -- SHA-256(plaintext token)
+    is_admin     INTEGER NOT NULL DEFAULT 0, -- 1 = may issue/revoke tokens (M3)
     created_at   INTEGER NOT NULL,
-    last_used_at INTEGER
+    last_used_at INTEGER,
+    revoked_at   INTEGER                     -- NULL = live; non-NULL = soft-revoked (M3)
 );
 
 CREATE TABLE IF NOT EXISTS audit_log (
