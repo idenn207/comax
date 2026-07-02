@@ -129,7 +129,7 @@ func TestSafeClient_RefusesRedirect(t *testing.T) {
 	client := SafeClient(Policy{}, 5*time.Second)
 	resp, err := client.Get(srv.URL)
 	if err == nil {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		t.Fatal("expected redirect to be refused, got nil error")
 	}
 	if !errors.Is(err, ErrRedirect) {
@@ -159,7 +159,7 @@ func TestSafeClient_DeliversToLoopback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("loopback delivery failed: %v", err)
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if !hit {
 		t.Error("receiver was not hit")
 	}

@@ -79,16 +79,16 @@ func (r *DeliveryRepo) ClaimDue(ctx context.Context, now time.Time, limit int) (
 	for rows.Next() {
 		d, err := scanDelivery(rows)
 		if err != nil {
-			rows.Close()
+			_ = rows.Close()
 			return nil, fmt.Errorf("claim due: scan: %w", err)
 		}
 		candidates = append(candidates, d)
 	}
 	if err := rows.Err(); err != nil {
-		rows.Close()
+		_ = rows.Close()
 		return nil, fmt.Errorf("claim due: rows: %w", err)
 	}
-	rows.Close()
+	_ = rows.Close()
 
 	var claimed []WebhookDelivery
 	for _, d := range candidates {
