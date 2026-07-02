@@ -24,6 +24,9 @@ const (
 	DefaultMaxAttempts = 5
 	DefaultBatchSize   = 50
 	DefaultStaleAfter  = 2 * time.Minute
+	// DefaultPollInterval is the outbox poll cadence used when the caller
+	// passes a non-positive interval to Run (and the cmd/server default).
+	DefaultPollInterval = 10 * time.Second
 	// maxResponseDrain bounds how much of a receiver's response body we read
 	// (to reuse the keep-alive connection) — we never need the content.
 	maxResponseDrain = 4 << 10
@@ -116,6 +119,14 @@ func DefaultBackoff(attempt int64) time.Duration {
 // transient error only logs (the next tick retries). This is launched as
 // `go worker.Run(ctx, interval)` from the server lifecycle.
 func (w *Worker) Run(ctx context.Context, interval time.Duration) {
+	// time.NewTicker panics on a non-positive interval, so a misconfigured
+	// --webhook-poll-interval 0 / COMAX_WEBHOOK_POLL=0s would crash the worker
+	// goroutine (and the process). Clamp to the default and warn instead.
+	if interval <= 0 {
+		w.logger.Warn("webhook poll interval non-positive; using default",
+			slog.Duration("requested", interval), slog.Duration("default", DefaultPollInterval))
+		interval = DefaultPollInterval
+	}
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {

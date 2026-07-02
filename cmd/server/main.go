@@ -198,7 +198,7 @@ func parseFlags(args []string, stderr io.Writer) (config, error) {
 		masterKeyPath:    envOr("COMAX_MASTER_KEY_FILE", "./keys/master.key"),
 		autoGenKey:       envBool("COMAX_AUTO_GENERATE_KEY", true),
 		dashboardEnabled: envBool("COMAX_DASHBOARD_ENABLED", true),
-		webhookPoll:      envDurationOr("COMAX_WEBHOOK_POLL", 10*time.Second),
+		webhookPoll:      envDurationOr("COMAX_WEBHOOK_POLL", webhook.DefaultPollInterval),
 	}
 	fs := flag.NewFlagSet("secret-server", flag.ContinueOnError)
 	fs.SetOutput(stderr)

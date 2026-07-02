@@ -367,6 +367,28 @@ func TestWorker_RunStopsOnContextCancel(t *testing.T) {
 	}
 }
 
+// TestWorker_RunClampsNonPositiveInterval guards the crash path: a
+// non-positive poll interval must not reach time.NewTicker (which panics),
+// so Run clamps it to the default and still stops cleanly on ctx cancel.
+func TestWorker_RunClampsNonPositiveInterval(t *testing.T) {
+	db, master := newWorkerDB(t)
+	for _, interval := range []time.Duration{0, -5 * time.Second} {
+		w := NewWorker(Options{DB: db, Keys: memKeyProvider{master}})
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan struct{})
+		go func() {
+			w.Run(ctx, interval) // must NOT panic on NewTicker(interval<=0)
+			close(done)
+		}()
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Errorf("worker with interval %v did not stop within 1s", interval)
+		}
+	}
+}
+
 func TestDefaultBackoff(t *testing.T) {
 	if d := DefaultBackoff(1); d != 10*time.Second {
 		t.Errorf("attempt 1 = %v; want 10s", d)
