@@ -141,3 +141,52 @@ export interface CreatedToken {
   is_admin: boolean;
   created_at: string;
 }
+
+/**
+ * Mirrors the server's webhookView (handlers_webhooks.go). The signing secret
+ * never appears in a listing — it is shown once at creation. `env` is absent
+ * for an all-environments subscription.
+ */
+export interface Webhook {
+  id: number;
+  project: string;
+  env?: string;
+  url: string;
+  events: string[];
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Response of POST /api/v1/webhooks (webhookCreatedView). `signing_secret` is
+ * the plaintext HMAC key, shown exactly once — the server keeps only its
+ * ciphertext.
+ */
+export interface CreatedWebhook {
+  id: number;
+  project: string;
+  env?: string;
+  url: string;
+  events: string[];
+  enabled: boolean;
+  signing_secret: string;
+  created_at: string;
+}
+
+/**
+ * Mirrors the server's deliveryView. One recent delivery attempt for a
+ * webhook. `last_status` is absent for a transport error or a not-yet-attempted
+ * row; `delivered_at` is present only once the delivery succeeds.
+ */
+export interface WebhookDelivery {
+  id: number;
+  event: string;
+  status: string;
+  attempts: number;
+  last_status?: number;
+  last_error?: string;
+  next_attempt_at: string;
+  created_at: string;
+  delivered_at?: string;
+}

@@ -34,6 +34,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/tokens", s.handleListTokens)
 	mux.HandleFunc("DELETE /api/v1/tokens/{id}", s.handleRevokeToken)
 
+	// Webhook management (admin-only; enforced inside each handler via
+	// requireAdmin). POST returns the signing secret exactly once.
+	mux.HandleFunc("POST /api/v1/webhooks", s.handleCreateWebhook)
+	mux.HandleFunc("GET /api/v1/webhooks", s.handleListWebhooks)
+	mux.HandleFunc("PATCH /api/v1/webhooks/{id}", s.handleSetWebhookEnabled)
+	mux.HandleFunc("DELETE /api/v1/webhooks/{id}", s.handleDeleteWebhook)
+	mux.HandleFunc("GET /api/v1/webhooks/{id}/deliveries", s.handleListDeliveries)
+
 	mux.HandleFunc("GET /api/v1/projects/{p}/envs", s.handleListEnvs)
 	mux.HandleFunc("POST /api/v1/projects/{p}/envs", s.handleCreateEnv)
 	mux.HandleFunc("GET /api/v1/projects/{p}/envs/{e}/diff", s.handleDiffEnvs)

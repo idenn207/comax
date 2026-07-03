@@ -29,6 +29,45 @@ func TestEnvRepo_CreateAndByName(t *testing.T) {
 	}
 }
 
+func TestEnvRepo_List(t *testing.T) {
+	db := newTestDB(t)
+	ctx := context.Background()
+	repo := NewEnvRepo(db)
+
+	// Empty DB → empty list, not an error.
+	got, err := repo.List(ctx)
+	if err != nil {
+		t.Fatalf("List (empty): %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("List (empty) len = %d; want 0", len(got))
+	}
+
+	// Envs across two projects all surface in one call, keyed by id.
+	a := mustCreateProject(t, db, "app")
+	b := mustCreateProject(t, db, "other")
+	dev := mustCreateEnv(t, db, a.ID, "dev", "")
+	prod := mustCreateEnv(t, db, a.ID, "prod", "")
+	stg := mustCreateEnv(t, db, b.ID, "staging", "")
+
+	got, err = repo.List(ctx)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(got) != 3 {
+		t.Fatalf("List len = %d; want 3", len(got))
+	}
+	byID := make(map[int64]string, len(got))
+	for _, e := range got {
+		byID[e.ID] = e.Name
+	}
+	for id, want := range map[int64]string{dev.ID: "dev", prod.ID: "prod", stg.ID: "staging"} {
+		if byID[id] != want {
+			t.Errorf("env %d name = %q; want %q", id, byID[id], want)
+		}
+	}
+}
+
 func TestEnvRepo_CreateWithoutInheritance(t *testing.T) {
 	db := newTestDB(t)
 	proj := mustCreateProject(t, db, "app")

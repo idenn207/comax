@@ -29,6 +29,9 @@ func TestMigrateSeedsAllExpectedTables(t *testing.T) {
 		"secret_versions",
 		"service_tokens",
 		"audit_log",
+		"dashboard_sessions",
+		"webhooks",
+		"webhook_deliveries",
 	}
 	for _, table := range want {
 		var name string

@@ -134,6 +134,62 @@ type DashboardSession struct {
 	RevokedAt   *time.Time
 }
 
+// Webhook is an operator-registered HTTP endpoint that receives a signed POST
+// when a matching secret change commits. EnvID is nil to match every
+// environment in the project. SecretCiphertext holds the master-key-sealed
+// HMAC signing key; List never populates it — only ByID (the delivery-worker
+// signing path) returns it.
+type Webhook struct {
+	ID               int64
+	ProjectID        int64
+	EnvID            *int64 // nil = all envs in the project
+	URL              string
+	SecretCiphertext []byte // populated only by ByID (worker signing path); nil in List
+	Events           string // comma-joined event kinds
+	Enabled          bool
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
+}
+
+// WebhookDelivery is one outbox row: a pending, in-flight, or terminal attempt
+// to POST an event to a webhook. Payload is JSON metadata only — a secret's
+// plaintext value never appears here. NextAttemptAt gates when a pending row
+// becomes due; ClaimedAt is the worker lease stamp (nil unless in_progress);
+// LastStatus/DeliveredAt are nil until the relevant transition.
+type WebhookDelivery struct {
+	ID            int64
+	WebhookID     int64
+	Event         string
+	Payload       string
+	Status        string
+	Attempts      int64
+	NextAttemptAt time.Time
+	ClaimedAt     *time.Time
+	LastStatus    *int64
+	LastError     string
+	CreatedAt     time.Time
+	DeliveredAt   *time.Time
+}
+
+// Webhook delivery lifecycle states. A delivery starts pending, is claimed
+// into in_progress, then reaches a terminal delivered or dead. A retry moves
+// in_progress back to pending with next_attempt_at pushed into the future.
+const (
+	DeliveryPending    = "pending"
+	DeliveryInProgress = "in_progress"
+	DeliveryDelivered  = "delivered"
+	DeliveryDead       = "dead"
+)
+
+// Webhook event kinds. These are the secret-mutation actions that trigger a
+// delivery; they are the values stored in webhooks.events (comma-joined) and
+// webhook_deliveries.event, and match the audit_log action strings.
+const (
+	EventSecretUpsert   = "secret.upsert"
+	EventSecretRollback = "secret.rollback"
+	EventSecretDelete   = "secret.delete"
+)
+
 // Open returns a *sql.DB pointed at dsn with foreign keys enforced and
 // a busy-timeout configured on every pooled connection.
 //
