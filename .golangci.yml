@@ -23,6 +23,7 @@ linters:
   exclusions:
     paths:
       - web/dashboard/node_modules
+      - website/node_modules
   settings:
     errcheck:
       exclude-functions:

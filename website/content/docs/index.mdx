@@ -1,0 +1,37 @@
+---
+title: 문서
+description: Comax Secrets 서버와 CLI, SDK, GitHub Actions 통합 문서.
+---
+
+## Comax Secrets 문서에 오신 것을 환영합니다
+
+Comax Secrets는 단일 바이너리 자가호스팅 시크릿 서버입니다. `.env` 파일 수동 동기화를 대신해 암호화된 중앙 저장소에서 개발 워크스테이션, CI 러너, 프로덕션 컨테이너로 시크릿을 배포합니다.
+
+## 시작하기
+
+처음이신가요? [5분 빠른 시작](/docs/quickstart)에서 Docker Compose로 서버를 올리고, CLI로 로그인한 뒤, 첫 시크릿을 실행하는 전체 흐름을 따라가세요.
+
+## 핵심 문서
+
+### 운영 및 배포
+- **[셀프호스팅](/docs/self-host)** — Docker Compose로 프로덕션급 배포를 설정하는 방법. SQLite, 마스터 키, 데이터 보존.
+- **[보안 및 위협 모델](/docs/security)** — 시스템이 보호하는 것과 그렇지 않은 것. 운영자 의무사항.
+
+### CLI와 워크플로
+- **[CLI 레퍼런스](/docs/cli)** — `secret login`, `init`, `push`, `run`, `get`, `set`, `diff`, `export`, `webhook`, `token` 등 11개 서브커맨드 완전 가이드.
+- **[GitHub Actions 통합](/docs/github-actions)** — action으로 워크플로에 시크릿을 주입. process-env(기본) vs github-env(opt-in) 모드.
+
+### 프로그래매틱 접근
+- **[Node/TypeScript SDK](/docs/sdk)** — `@comax-secrets/sdk`로 Next.js, Node, Edge Runtime에서 런타임에 시크릿 페칭. 캐시 + reload + 웹훅 검증.
+- **[웹훅](/docs/webhooks)** — 시크릿 변경 시 등록한 URL로 서명된 이벤트. 서명 검증 + 멱등성 + 재시도 정책.
+
+## 구조
+
+각 문서는 실용적인 예제와 명령어 중심입니다. 마케팅 언어는 없고, 개발자 대상의 조용하고 정직한 톤입니다.
+
+## 다음은?
+
+- 로컬에서 시험해보세요: [빠른 시작](/docs/quickstart)
+- 프로덕션 체크리스트: [보안 및 위협 모델](/docs/security)
+- CI 통합 계획: [GitHub Actions 통합](/docs/github-actions)
+- 애플리케이션 코드에서: [SDK](/docs/sdk)

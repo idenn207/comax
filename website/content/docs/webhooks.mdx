@@ -1,0 +1,246 @@
+---
+title: 웹훅
+description: 시크릿 변경 이벤트를 서명된 웹훅으로 수신합니다.
+---
+
+## 웹훅 (M4)
+
+시크릿이 바뀔 때 (생성·수정·롤백·삭제) 등록한 URL로 **서명된 이벤트**를 POST합니다. 운영자는 이 트리거를 받아 Docker Swarm 서비스 재시작 같은 후속 동작을 돌립니다.
+
+핵심 원칙:
+
+- **페이로드에 시크릿 값이 없습니다.** 이벤트는 무엇이 바뀌었는지 (project/env/key/version/action)만 알립니다. 수신자는 트리거를 받은 뒤 자신의 인증된 CLI 또는 SDK로 값을 다시 pull합니다.
+- **at-least-once.** 배달은 최소 한 번 보장이며 중복될 수 있습니다. 수신자는 **멱등**해야 합니다 (같은 `X-Comax-Delivery` id를 두 번 처리해도 안전).
+- **admin 전용.** 등록·삭제·활성화 전환은 admin 토큰만 가능합니다.
+
+## 웹훅 등록
+
+### CLI
+
+```bash
+# 프로젝트의 모든 환경, 모든 이벤트를 구독
+secret webhook create --project comax --url https://deploy.internal/redeploy
+
+# prod 환경의 upsert/delete만 구독
+secret webhook create \
+  --project comax --env prod \
+  --url http://deploy.internal/hook \
+  --events secret.upsert,secret.delete
+```
+
+`create` 명령은 **서명 시크릿을 stdout에 한 번만** 출력합니다. 지금 복사해서 수신 서버의 서명 검증에 저장하세요. 다시 조회할 수 없습니다.
+
+웹훅 관리:
+
+```bash
+secret webhook list                  # 등록된 웹훅 표
+secret webhook deliveries --id 3     # 최근 배달 상태
+secret webhook disable --id 3        # 소프트 비활성화 (새 이벤트 중단, 이력 유지)
+secret webhook enable --id 3         # 다시 활성화
+secret webhook delete --id 3         # 삭제 (배달 이력도 함께 제거)
+```
+
+### 활성 / 비활성 (소프트 disable)
+
+`disable`한 웹훅은 등록·배달 이력을 그대로 둔 채 **새 이벤트만 중단**합니다. 이미 큐잉된 배달은 계속 빠져나갑니다. `enable`으로 되돌립니다 — 삭제 후 재등록의 **가역 대안**입니다. delete와 달리 서명 시크릿을 다시 발급하지 않으므로 수신자 설정을 바꾸지 않고 잠시 껐다 켤 수 있습니다.
+
+## 페이로드 스키마
+
+`Content-Type: application/json` 본문:
+
+```json
+{
+  "action": "secret.upsert",
+  "project": "comax",
+  "env": "prod",
+  "key": "DB_URL",
+  "version": 7,
+  "timestamp": 1751000000
+}
+```
+
+필드:
+- `action` — `secret.upsert` | `secret.rollback` | `secret.delete`
+- `version` — 변경 후 버전. `secret.delete`에는 없음 (생략).
+- `timestamp` — 이벤트 기록 시각 (unix seconds).
+- **값 필드는 없습니다.** 구조적으로 시크릿 평문이 실릴 자리가 없습니다.
+
+배달 id는 본문이 아니라 헤더로 전달됩니다 (GitHub의 `X-GitHub-Delivery`와 동일).
+
+## 요청 헤더
+
+| 헤더 | 내용 |
+|---|---|
+| `X-Comax-Signature` | `sha256=<hex>` — HMAC-SHA256(`"<timestamp>.<body>"`) |
+| `X-Comax-Timestamp` | 서명에 쓰인 unix seconds. replay 방지에 사용 |
+| `X-Comax-Event` | 이벤트 종류 (`secret.upsert` 등) |
+| `X-Comax-Delivery` | 배달 id. **멱등 키로 사용** |
+
+## 서명 검증
+
+서명은 `"<timestamp>.<body>"`에 대한 HMAC-SHA256(서명 시크릿)입니다. 등록 시 받은 서명 시크릿으로 재계산해 **상수시간 비교**합니다. `X-Comax-Timestamp`가 현재 시각에서 너무 벌어졌으면 (예: 5분) 거부해 replay를 막습니다.
+
+### Node.js 수신자 예
+
+```ts
+import crypto from "node:crypto";
+
+function verify(
+  req: Request,
+  rawBody: string,
+  signingSecret: string
+): boolean {
+  const ts = req.headers.get("x-comax-timestamp");
+  const sig = req.headers.get("x-comax-signature") || "";
+  
+  // replay 방지: 타임스탐프가 5분 이상 어긋나면 거부
+  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
+  
+  const mac = crypto.createHmac("sha256", signingSecret);
+  mac.update(ts + "." + rawBody); // rawBody는 수신한 바이트 그대로
+  const want = "sha256=" + mac.digest("hex");
+  
+  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want));
+}
+```
+
+**중요**: `rawBody`는 파싱 전 원본 바이트여야 합니다. 재직렬화하면 서명이 깨집니다.
+
+### Next.js Route Handler 예
+
+```ts
+// app/api/comax-webhook/route.ts
+import crypto from "node:crypto";
+
+export async function POST(req: Request) {
+  const rawBody = await req.text(); // 파싱 전 원문
+  
+  const ts = req.headers.get("x-comax-timestamp");
+  const sig = req.headers.get("x-comax-signature");
+  
+  // 서명 검증
+  const mac = crypto.createHmac("sha256", process.env.COMAX_WEBHOOK_SECRET!);
+  mac.update(ts + "." + rawBody);
+  const want = "sha256=" + mac.digest("hex");
+  
+  if (!crypto.timingSafeEqual(Buffer.from(sig || ""), Buffer.from(want))) {
+    return new Response("invalid signature", { status: 401 });
+  }
+  
+  // 서명이 유효함. 페이로드 처리
+  const event = JSON.parse(rawBody);
+  
+  // 멱등성: X-Comax-Delivery로 배달 id 추적
+  const deliveryId = req.headers.get("x-comax-delivery");
+  await recordDelivery(deliveryId); // DB에 저장, 중복 skip
+  
+  if (event.action === "secret.upsert" && event.env === "prod") {
+    // 예: 배포 트리거
+    await triggerDeploy(event.project);
+  }
+  
+  return new Response("ok");
+}
+```
+
+SDK 활용:
+
+```ts
+import { verifyWebhookSignature, HEADER_SIGNATURE, HEADER_TIMESTAMP } from "@comax-secrets/sdk/webhook";
+
+const result = await verifyWebhookSignature({
+  secret: process.env.COMAX_WEBHOOK_SECRET!,
+  signatureHeader: req.headers.get(HEADER_SIGNATURE),
+  timestampHeader: req.headers.get(HEADER_TIMESTAMP),
+  body: await req.text(),
+});
+
+if (!result.valid) return new Response("unauthorized", { status: 401 });
+```
+
+## 재시도와 배달 상태
+
+배달은 `pending → in_progress → {delivered | dead}`로 흐릅니다:
+
+- **2xx 응답** → `delivered`
+- **그 외** (또는 전송 실패) → 지수 백오프로 재시도 (`pending` 재진입)
+- **maxAttempts 초과** (기본 5) → `dead` (더는 재시도하지 않음)
+- **워커 크래시**: lease가 만료된 뒤 다른 tick이 회수해 재시도
+
+배달 상태 조회:
+
+```bash
+secret webhook deliveries --id 3
+```
+
+**Transactional outbox**: 배달 행은 시크릿 변경과 **같은 트랜잭션**에서 큐잉됩니다. 커밋된 변경만 배달 대상이 되므로, 롤백된 변경은 유령 배달을 만들지 않습니다.
+
+## 이벤트 scope
+
+- `project` (필수) + `env` (선택, 생략 시 프로젝트의 모든 환경) + `events` 필터
+- per-key 필터는 v1 범위 밖 (YAGNI). 특정 키만 받으려면 수신자에서 `key`로 거릅니다.
+
+```bash
+# 프로젝트 전체
+secret webhook create --project api --url https://example.com/hook
+
+# 특정 env만
+secret webhook create --project api --env prod --url https://example.com/hook
+
+# 특정 이벤트만
+secret webhook create --project api --events secret.upsert,secret.delete --url https://example.com/hook
+```
+
+## SSRF 정책
+
+웹훅의 목적이 내부 서비스 호출이므로 **RFC1918 사설/loopback은 허용**합니다 (Docker overlay는 사설 대역). 다만 **link-local / 클라우드 metadata (169.254.0.0/16, IPv6 `fe80::/10`, 특히 `169.254.169.254`)는 기본 차단**합니다.
+
+방어 계층:
+
+1. `http`/`https` 스킴만
+2. 등록·배달 시 host를 resolve해 link-local/metadata면 거부
+3. 리다이렉트 미추종 (3xx로 내부 주소로 튀는 것을 차단)
+4. 배달 시 `DialContext`에서 resolve된 IP 재검증 (DNS rebinding 방어)
+5. 운영자 정책 override (CIDR·IP, 콤마 구분):
+   - `COMAX_WEBHOOK_ALLOW` — 기본 차단을 뚫고 허용할 대역
+   - `COMAX_WEBHOOK_DENY` — 추가로 막을 내부 control-plane 대역
+
+예:
+
+```bash
+# 특정 metadata를 허용
+COMAX_WEBHOOK_ALLOW=169.254.169.254 docker compose up
+
+# 특정 대역 차단
+COMAX_WEBHOOK_DENY=10.0.0.0/8 docker compose up
+```
+
+## 서명 시크릿 회전
+
+v1에는 in-place 회전 경로가 없습니다. 시크릿을 바꾸려면 **삭제 후 재등록**합니다:
+
+```bash
+secret webhook delete --id 3
+secret webhook create --project comax --url https://deploy.internal/redeploy
+# → 새 서명 시크릿 출력
+```
+
+위조 트리거의 blast radius는 운영자 자신의 수신자에 한정되고, 수신자는 인증 CLI로 값을 재-pull하므로 유출 파급이 제한적입니다.
+
+## 폴링 주기
+
+배달 워커는 기본 10초마다 outbox를 폴링합니다. 조정:
+
+```bash
+docker compose -e COMAX_WEBHOOK_POLL=3s up
+```
+
+또는 환경 변수:
+
+```bash
+--webhook-poll-interval 3s
+```
+
+<Callout type="note">
+멱등성을 위해 수신자는 `X-Comax-Delivery` id를 데이터베이스에 저장하고 중복을 건너뜁니다. 같은 id가 두 번 도착하는 것은 정상입니다.
+</Callout>

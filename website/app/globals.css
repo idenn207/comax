@@ -1,0 +1,333 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens — mirrored from web/dashboard/src/styles/tokens.css.
+ *
+ * Neutral + semantic tokens are copied name-for-name and value-for-value so the
+ * marketing site and the operator dashboard read as one product
+ * (check-token-parity.mjs enforces parity — Codex F4).
+ *
+ * Identity-preservation: the dashboard is deliberately monochrome ("색은 의미에만",
+ * GitHub reference). The website keeps that. The single chromatic note is the
+ * EXISTING blue (hue 250 — the same family as the focus ring and --color-info),
+ * codified here as --color-brand and used only for links + ONE hero emphasis
+ * (impeccable Output Constraint #2: accent ≤1 per viewport). It is NOT a new
+ * invented SaaS-indigo accent — that lane is a PRODUCT.md anti-reference. The
+ * primary CTA stays monochrome graphite filled, exactly like the dashboard.
+ */
+
+:root,
+[data-theme='light'] {
+  /* ── Surfaces ── */
+  --color-surface: oklch(98.5% 0.002 260);
+  --color-surface-elevated: oklch(100% 0 0);
+  --color-surface-hover: oklch(95.5% 0.004 260);
+  --color-surface-active: oklch(92% 0.006 260);
+  --color-panel: oklch(97% 0.003 260);
+
+  /* ── Text ── */
+  --color-text: oklch(20% 0.012 260);
+  --color-text-subtle: oklch(40% 0.01 260);
+  --color-muted: oklch(52% 0.008 260);
+  --color-text-faint: oklch(48% 0.008 260);
+
+  /* ── Borders ── */
+  --color-border: oklch(90% 0.004 260);
+  --color-border-strong: oklch(78% 0.006 260);
+
+  /* ── Primary action (monochrome filled — mirrors dashboard) ── */
+  --color-accent: oklch(22% 0.01 260);
+  --color-accent-hover: oklch(30% 0.01 260);
+  --color-accent-active: oklch(14% 0.01 260);
+  --color-accent-soft: oklch(95% 0.004 260);
+  --color-accent-soft-hover: oklch(92% 0.006 260);
+  --color-accent-text: oklch(98% 0.002 260);
+  --color-accent-strong: oklch(14% 0.01 260);
+
+  /* ── Brand accent (website-only, D10) — the existing blue-250 identity ── */
+  --color-brand: oklch(52% 0.15 250);
+  --color-brand-hover: oklch(46% 0.16 250);
+  --color-brand-soft: oklch(95% 0.03 250);
+  --color-brand-text: oklch(99% 0.005 250);
+
+  /* ── Semantic (state only) ── */
+  --color-danger: oklch(52% 0.2 25);
+  --color-danger-soft: oklch(95% 0.04 25);
+  --color-danger-strong: oklch(38% 0.2 25);
+  --color-warning: oklch(60% 0.16 70);
+  --color-warning-soft: oklch(95% 0.05 70);
+  --color-warning-strong: oklch(42% 0.16 70);
+  --color-success: oklch(48% 0.12 150);
+  --color-success-soft: oklch(94% 0.04 150);
+  --color-info: oklch(50% 0.14 250);
+  --color-info-soft: oklch(94% 0.04 250);
+
+  /* ── Code surface ── */
+  --color-code-bg: oklch(96% 0.004 260);
+  --color-code-text: oklch(28% 0.012 260);
+
+  /* ── Focus ring ── */
+  --color-focus-ring: oklch(58% 0.18 250);
+
+  /* ── Typography ── */
+  --text-xs: 0.75rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.9375rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-display: clamp(2.5rem, 1.6rem + 3.4vw, 3.5rem);
+  --text-hero: clamp(2.75rem, 1.4rem + 5vw, 4.5rem);
+  --line-tight: 1.12;
+  --line-snug: 1.3;
+  --line-normal: 1.6;
+  --line-relaxed: 1.75;
+
+  /* ── Font families (system fallback chain, no network fetch) ── */
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
+    'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', 'Segoe UI', system-ui, ui-sans-serif,
+    sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Cascadia Mono', Menlo, Consolas,
+    monospace;
+
+  /* ── Spacing (4-pt) ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+
+  /* ── Radius ── */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-full: 9999px;
+
+  /* ── Shadow ── */
+  --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.05);
+  --shadow-md: 0 2px 6px oklch(0% 0 0 / 0.07), 0 1px 2px oklch(0% 0 0 / 0.04);
+  --shadow-lg: 0 8px 24px oklch(0% 0 0 / 0.09), 0 2px 4px oklch(0% 0 0 / 0.04);
+
+  /* ── Motion ── */
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 360ms;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+
+  /* ── Layout ── */
+  --content-max: 72rem;
+  --header-height: 56px;
+}
+
+[data-theme='dark'] {
+  --color-surface: oklch(15% 0.006 260);
+  --color-surface-elevated: oklch(19% 0.008 260);
+  --color-surface-hover: oklch(23% 0.01 260);
+  --color-surface-active: oklch(27% 0.011 260);
+  --color-panel: oklch(12% 0.005 260);
+
+  --color-text: oklch(96% 0.004 260);
+  --color-text-subtle: oklch(78% 0.006 260);
+  --color-muted: oklch(60% 0.008 260);
+  --color-text-faint: oklch(62% 0.008 260);
+
+  --color-border: oklch(27% 0.01 260);
+  --color-border-strong: oklch(38% 0.012 260);
+
+  --color-accent: oklch(96% 0.004 260);
+  --color-accent-hover: oklch(90% 0.004 260);
+  --color-accent-active: oklch(84% 0.004 260);
+  --color-accent-soft: oklch(24% 0.008 260);
+  --color-accent-soft-hover: oklch(28% 0.01 260);
+  --color-accent-text: oklch(15% 0.006 260);
+  --color-accent-strong: oklch(100% 0 0);
+
+  /* Brand brightens for dark parity (matches --color-info dark). */
+  --color-brand: oklch(72% 0.14 250);
+  --color-brand-hover: oklch(78% 0.14 250);
+  --color-brand-soft: oklch(26% 0.06 250);
+  --color-brand-text: oklch(15% 0.006 260);
+
+  --color-danger: oklch(72% 0.2 25);
+  --color-danger-soft: oklch(28% 0.1 25);
+  --color-danger-strong: oklch(86% 0.2 25);
+  --color-warning: oklch(78% 0.15 70);
+  --color-warning-soft: oklch(28% 0.08 70);
+  --color-warning-strong: oklch(88% 0.16 70);
+  --color-success: oklch(72% 0.12 150);
+  --color-success-soft: oklch(24% 0.05 150);
+  --color-info: oklch(72% 0.14 250);
+  --color-info-soft: oklch(24% 0.06 250);
+
+  --color-code-bg: oklch(20% 0.008 260);
+  --color-code-text: oklch(86% 0.008 260);
+
+  --color-focus-ring: oklch(72% 0.16 250);
+
+  --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.4);
+  --shadow-md: 0 2px 6px oklch(0% 0 0 / 0.5), 0 1px 2px oklch(0% 0 0 / 0.3);
+  --shadow-lg: 0 8px 24px oklch(0% 0 0 / 0.55), 0 2px 4px oklch(0% 0 0 / 0.3);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: calc(var(--header-height) + 16px);
+  }
+
+  body {
+    background-color: var(--color-surface);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--line-normal);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    letter-spacing: -0.02em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background-color: var(--color-brand-soft);
+    color: var(--color-text);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-focus-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  code,
+  pre,
+  kbd {
+    font-family: var(--font-mono);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Docs: syntax highlighting (rehype-pretty-code, dual theme) ── */
+[data-rehype-pretty-code-figure] {
+  margin: var(--space-6) 0;
+}
+
+[data-rehype-pretty-code-title] {
+  border: 1px solid var(--color-border);
+  border-bottom: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background-color: var(--color-panel);
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+[data-rehype-pretty-code-figure] pre {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-code-bg);
+  padding: var(--space-4) 0;
+  font-size: var(--text-sm);
+  line-height: var(--line-relaxed);
+}
+
+[data-rehype-pretty-code-title] + pre {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+
+[data-rehype-pretty-code-figure] code {
+  display: grid;
+  background: transparent;
+}
+
+[data-rehype-pretty-code-figure] code [data-line] {
+  padding: 0 var(--space-4);
+}
+
+/* Pick the shiki token color for the active theme. */
+[data-rehype-pretty-code-figure] code span {
+  color: var(--shiki-light);
+}
+
+[data-theme='dark'] [data-rehype-pretty-code-figure] code span {
+  color: var(--shiki-dark);
+}
+
+/* ── Docs prose (Tailwind Typography mapped to our tokens) ── */
+.prose {
+  --tw-prose-body: var(--color-text-subtle);
+  --tw-prose-headings: var(--color-text);
+  --tw-prose-links: var(--color-brand);
+  --tw-prose-bold: var(--color-text);
+  --tw-prose-counters: var(--color-muted);
+  --tw-prose-bullets: var(--color-border-strong);
+  --tw-prose-hr: var(--color-border);
+  --tw-prose-quotes: var(--color-text-subtle);
+  --tw-prose-quote-borders: var(--color-border);
+  --tw-prose-code: var(--color-code-text);
+  --tw-prose-th-borders: var(--color-border-strong);
+  --tw-prose-td-borders: var(--color-border);
+  color: var(--tw-prose-body);
+  max-width: none;
+}
+
+/* Inline code (outside highlighted blocks): remove typography backticks. */
+.prose :where(code):not(:where([data-rehype-pretty-code-figure] *))::before,
+.prose :where(code):not(:where([data-rehype-pretty-code-figure] *))::after {
+  content: '';
+}
+
+.prose :where(code):not(:where([data-rehype-pretty-code-figure] *)) {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-code-bg);
+  padding: 0.12em 0.36em;
+  font-size: 0.875em;
+  font-weight: 400;
+  color: var(--color-code-text);
+}
+
+/* Heading anchors added by rehype-autolink-headings. */
+.prose .heading-anchor {
+  color: inherit;
+  text-decoration: none;
+}
+
+.prose :is(h2, h3) {
+  scroll-margin-top: calc(var(--header-height) + 16px);
+}

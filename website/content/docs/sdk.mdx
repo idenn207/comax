@@ -1,0 +1,255 @@
+---
+title: Node/TypeScript SDK
+description: Next.js, Node, Edge Runtime에서 런타임 시크릿 페칭, 캐싱, 리로드.
+---
+
+## Node/TypeScript SDK
+
+`@comax-secrets/sdk`는 Comax Secrets 서버에서 런타임에 시크릿을 가져오는 경량 SDK입니다. Next.js·Node·Edge에서 **fetch + cache + reload**를 제공하며, 런타임 의존성이 없습니다 (global `fetch`만 사용).
+
+## 설치
+
+```bash
+npm install @comax-secrets/sdk
+```
+
+Node 18+ 필요 (global `fetch`). Edge Workers, Deno, Bun에서도 작동합니다.
+
+## 빠른 시작
+
+환경 변수에서 자동으로 초기화:
+
+```ts
+import { createClientFromEnv } from "@comax-secrets/sdk";
+
+const secrets = createClientFromEnv();
+const dbUrl = await secrets.get("DATABASE_URL");
+```
+
+필수 환경 변수: `COMAX_URL`, `COMAX_TOKEN`, `COMAX_PROJECT`, `COMAX_ENV`.
+
+명시적 옵션으로 초기화:
+
+```ts
+import { createClient } from "@comax-secrets/sdk";
+
+const secrets = createClient({
+  baseUrl: "https://secrets.example.com",
+  token: process.env.COMAX_TOKEN!,
+  project: "api",
+  env: "prod",
+  ttlMs: 60_000,      // 캐시 신선도 (기본 60초)
+  timeoutMs: 10_000,  // 요청 타임아웃 (기본 10초)
+});
+
+const key = await secrets.get("STRIPE_KEY");
+```
+
+<Callout type="danger">
+서버 전용. 서비스 토큰은 환경의 모든 시크릿 읽기 권한을 줍니다. 토큰이 브라우저에 도달하는 곳(클라이언트 컴포넌트, 번들 클라이언트 코드)에서 절대 사용하지 마세요. Route Handler, Server Component, middleware, 또는 서버 runtime에서만 사용합니다.
+</Callout>
+
+## Next.js 패턴
+
+### 모듈 스코프 싱글턴
+
+서버리스/Edge에서 콜드 스타트마다 모듈 상태가 초기화됩니다. 캐시는 warm 인스턴스 내에서만 작동합니다 (persistent하지 않음). 클라이언트를 모듈 스코프에 한 번 만들어 재사용하세요:
+
+```ts
+// lib/secrets.ts
+import { createClientFromEnv } from "@comax-secrets/sdk";
+
+export const secrets = createClientFromEnv();
+```
+
+### Route Handler
+
+```ts
+// app/api/config/route.ts
+import { secrets } from "@/lib/secrets";
+
+export async function GET() {
+  const apiKey = await secrets.get("STRIPE_KEY");
+  // ... apiKey로 서버 측 호출. 값 자체는 응답에 넣지 마세요.
+  return Response.json({ ok: true });
+}
+```
+
+### Server Component
+
+```tsx
+// app/page.tsx
+import { secrets } from "@/lib/secrets";
+
+export default async function Page() {
+  const featureFlag = await secrets.get("FEATURE_FLAG");
+  return (
+    <main>
+      {featureFlag === "on" ? <BetaUI /> : <StableUI />}
+    </main>
+  );
+}
+```
+
+### Edge Runtime
+
+Edge runtime은 `fetch`와 Web Crypto만 필요하므로 SDK가 그대로 작동합니다:
+
+```ts
+export const runtime = "edge";
+
+import { createClient } from "@comax-secrets/sdk";
+
+const secrets = createClient({
+  baseUrl: process.env.COMAX_URL!,
+  token: process.env.COMAX_TOKEN!,
+  project: "api",
+  env: "prod",
+});
+```
+
+## SecretsClient API
+
+### `get(key: string, signal?: AbortSignal): Promise<string>`
+
+한 시크릿의 값을 페칭합니다. 단일-키 캐시 + 스마트 fetch.
+
+```ts
+const value = await secrets.get("DB_URL");
+```
+
+### `getAll(signal?: AbortSignal): Promise<Record<string, string>>`
+
+환경 전체를 `{ KEY: value }` 맵으로 페칭합니다 (bulk inject, opt-in). 모든 키를 메모리에 로드합니다.
+
+```ts
+const allSecrets = await secrets.getAll();
+```
+
+### `preload(signal?: AbortSignal): Promise<Secret[]>`
+
+환경 전체를 `Secret[]`로 페칭합니다 (version + updated_at 포함).
+
+```ts
+const secretsList = await secrets.preload();
+// [{ key: "DB_URL", value: "...", version: 5, updated_at: "..." }, ...]
+```
+
+### `has(key: string): boolean`
+
+캐시에 신선한 상태로 있으면 true (fetch 없음).
+
+```ts
+if (secrets.has("DB_URL")) {
+  // 캐시 히트, refetch 없음
+}
+```
+
+### `reload(key?: string): void`
+
+캐시 무효화. 다음 read가 refetch합니다.
+
+```ts
+secrets.reload("DB_URL");  // 한 키만
+secrets.reload();           // 전체 무효화
+```
+
+### `startAutoRefresh() / stopAutoRefresh()`
+
+long-running Node 서버: 백그라운드에서 주기적으로 갱신 (Edge/serverless에는 불적합).
+
+```ts
+const secrets = createClient({ 
+  /* ... */, 
+  refreshIntervalMs: 30_000  // 30초마다
+});
+secrets.startAutoRefresh();
+// 종료 시:
+secrets.stopAutoRefresh();
+```
+
+## 에러 처리
+
+모든 실패는 `ComaxError` 또는 하위 타입을 던집니다. 값·토큰은 에러 메시지에 절대 포함되지 않습니다.
+
+```ts
+import { 
+  ComaxAuthError, 
+  ComaxNotFoundError, 
+  ComaxConflictError,
+  ComaxError 
+} from "@comax-secrets/sdk";
+
+try {
+  await secrets.get("KEY");
+} catch (err) {
+  if (err instanceof ComaxAuthError) {
+    // 401/403 — 토큰 문제
+  } else if (err instanceof ComaxNotFoundError) {
+    // 404 — 키/환경 없음
+  } else if (err instanceof ComaxConflictError) {
+    // 409 — 충돌
+  } else if (err instanceof ComaxError && err.code === "timeout") {
+    // 타임아웃/abort
+  }
+}
+```
+
+| 코드 | 의미 |
+|---|---|
+| `unauthorized` / `forbidden` | 토큰 누락·무효·권한 부족 |
+| `not_found` / `version_not_found` | 리소스 없음 |
+| `conflict` / `already_bootstrapped` | 충돌 |
+| `bad_request` | 잘못된 입력/설정 |
+| `timeout` | 요청 타임아웃 또는 caller abort |
+| `network` | 네트워크 실패 |
+| `invalid_response` | 응답 envelope 파싱 실패 |
+
+## 웹훅 기반 캐시 무효화
+
+M4 웹훅으로 시크릿 변경을 감지해 캐시를 실시간으로 리로드합니다.
+
+```ts
+// app/api/comax-webhook/route.ts
+import { secrets } from "@/lib/secrets";
+import { 
+  verifyWebhookSignature, 
+  HEADER_SIGNATURE, 
+  HEADER_TIMESTAMP 
+} from "@comax-secrets/sdk/webhook";
+
+export async function POST(req: Request) {
+  const body = await req.text(); // 원문 그대로 (재직렬화 금지)
+  
+  const result = await verifyWebhookSignature({
+    secret: process.env.COMAX_WEBHOOK_SECRET!,
+    signatureHeader: req.headers.get(HEADER_SIGNATURE),
+    timestampHeader: req.headers.get(HEADER_TIMESTAMP),
+    body,
+  });
+  
+  if (!result.valid) {
+    return new Response("invalid signature", { status: 401 });
+  }
+  
+  secrets.reload(); // 모든 캐시 무효화 → 다음 read가 refetch
+  return new Response("ok");
+}
+```
+
+서명 스킴: `sha256=hex(HMAC-SHA256(secret, "<timestamp>.<body>"))`. Replay 방지를 위해 타임스탐프가 내장되어 있습니다.
+
+## 환경 변수
+
+| 변수 | 예제 |
+|---|---|
+| `COMAX_URL` | `https://secrets.example.com` |
+| `COMAX_TOKEN` | `<opaque-service-token>` |
+| `COMAX_PROJECT` | `api` |
+| `COMAX_ENV` | `prod` |
+
+`createClientFromEnv()`는 모두 필수입니다.
+
+<Callout type="note">
+`get(key)`는 단일-키 엔드포인트만 사용합니다 — 하나의 시크릿만 필요할 때 환경 전체 평문을 메모리에 올리지 않습니다. 벌크 주입이 필요하면 `getAll()` 또는 `preload()`를 명시적으로 사용하세요.
+</Callout>

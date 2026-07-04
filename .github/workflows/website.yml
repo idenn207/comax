@@ -1,0 +1,59 @@
+name: website
+
+# Marketing/docs site gate (M6). typecheck + lint + build + verify scripts.
+# Vercel preview/production deploys run via the Vercel Git integration on an
+# operator-linked project, not here.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'website/**'
+      - '.github/workflows/website.yml'
+      # Source-of-truth contracts the docs-drift gate asserts against
+      # (website/scripts/check-docs-drift.mjs reads these). Without them a
+      # CLI/action/SDK change that leaves website/ untouched would skip the
+      # gate entirely and let the canonical MDX drift silently.
+      - 'cmd/cli/main.go'
+      - 'action.yml'
+      - 'sdk/src/index.ts'
+  pull_request:
+    paths:
+      - 'website/**'
+      - '.github/workflows/website.yml'
+      - 'cmd/cli/main.go'
+      - 'action.yml'
+      - 'sdk/src/index.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  website:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+      - name: Verify token parity
+        run: node scripts/check-token-parity.mjs
+      - name: Verify docs coverage
+        run: node scripts/check-docs-coverage.mjs
+      - name: Verify docs drift (source contracts)
+        run: node scripts/check-docs-drift.mjs
+      - name: Verify SITE_URL
+        run: node scripts/check-site-url.mjs
