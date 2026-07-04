@@ -47,11 +47,19 @@ containers.
 ├── deploy/
 │   ├── docker/        # Multi-stage Dockerfile (distroless final)
 │   └── compose/       # docker-compose.yml with bind-mounted data + keys
-├── docs/              # quickstart, threat-model, perf, dogfood
-├── .github/workflows/ # CI: test, lint, cross-compile matrix
-├── Makefile           # build / test / lint / xbuild / docker
+├── docs/              # dev-internal docs; user-facing docs are canonical on the site (website/content/docs)
+├── sdk/               # @comax-secrets/sdk — Node/TS SDK (M5)
+├── website/           # marketing + docs site — Next.js/Vercel, @comax/website (M6)
+├── .github/workflows/ # CI: test, lint, cross-compile, sdk, website
+├── Makefile           # build / test / lint / xbuild / docker / sdk / website
 └── .claude/           # PRDs, plans, working notes
 ```
+
+**Docs canonical (M6)**: the user-facing docs (quickstart, self-host, CLI/SDK
+reference, GitHub Actions, webhooks, security) are canonical on the docs site,
+built from [`website/content/docs`](website/content/docs). The user-facing files
+under `docs/` are thin stubs that point there; `docs/` otherwise keeps
+dev-internal material (threat-model deep-dive, perf budget, dogfood checklists).
 
 ## Quickstart
 

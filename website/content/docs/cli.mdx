@@ -1,0 +1,235 @@
+---
+title: CLI 레퍼런스
+description: secret 커맨드 11개 서브커맨드의 완전 가이드.
+---
+
+## CLI 레퍼런스
+
+`secret` CLI는 Comax Secrets 서버와 상호작용하기 위한 단일 바이너리입니다. 전역 플래그로 `--credentials` (자격증명 파일 경로)를 사용할 수 있습니다 (기본값: `~/.config/comax/credentials.json`).
+
+## secret login
+
+서버 URL과 토큰을 검증하고 자격증명을 저장합니다.
+
+```bash
+secret login --server http://localhost:8080 --token <token>
+# 또는 환경 변수:
+export COMAX_TOKEN=<token>
+secret login --server http://localhost:8080
+```
+
+자격증명은 `~/.config/comax/credentials.json` (모드 `0600`)에 저장됩니다.
+
+**플래그:**
+- `--server` (필수): 서버 베이스 URL
+- `--token`: Bearer 토큰 (또는 `$COMAX_TOKEN`)
+
+## secret init
+
+프로젝트와 환경을 생성하고 `.secretrc` 파일을 작성합니다.
+
+```bash
+secret init --project my-app \
+            --envs local,dev,prod \
+            --default-env local
+```
+
+결과: 서버에 프로젝트·환경 생성, 현재 디렉터리에 `.secretrc` (gitignore 됨).
+
+**플래그:**
+- `--project` (필수): 프로젝트 이름
+- `--envs`: 쉼표 구분 환경 이름 (기본: `local,dev,prod`)
+- `--default-env`: `.secretrc`에 기록할 기본 환경 (기본: 첫 `--envs` 항목)
+
+멱등: 프로젝트/환경이 이미 있으면 건너뜁니다.
+
+## secret pull
+
+환경의 모든 시크릿을 `.env` 파일로 다운로드합니다.
+
+```bash
+secret pull                    # → .env (기본)
+secret pull --out secrets.env  # → secrets.env
+secret pull --out -            # → stdout
+secret pull --env prod         # prod 환경 사용
+```
+
+**플래그:**
+- `--env`: 환경 이름 (기본: `.secretrc` 또는 현재 디렉터리의 resolved env)
+- `--out`: 출력 파일 (기본: `.env`; `-`는 stdout)
+- `--quiet`: 상태 메시지 억제
+
+## secret push
+
+`.env` 파일을 파싱해 서버로 푸시합니다.
+
+```bash
+secret push --file .env
+secret push --file .env --env prod
+secret push --file config.env
+```
+
+각 키는 새 버전으로 업로드됩니다. 파일의 중복 항목은 마지막 값으로 덮어씁니다 (같은 파일 내).
+
+**플래그:**
+- `--file`: `.env` 파일 경로 (기본: `.env`)
+- `--env`: 환경 이름 (기본: resolved env)
+- `--quiet`: 상태 메시지 억제
+
+트랜잭션이 아님: 네트워크 중단 시 일부 키만 도착할 수 있습니다. 재실행은 안전합니다 (PUT은 멱등).
+
+## secret get
+
+한 시크릿의 해석된 값을 출력합니다 (뒤에 줄바꿈 없음, 쉘 치환 가능).
+
+```bash
+secret get DB_URL
+secret get API_KEY --env prod
+export DB_URL=$(secret get DB_URL)
+```
+
+**플래그:**
+- `--env`: 환경 이름 (기본: resolved env)
+- `--quiet`: 항상 true (기본값, 출력만 값)
+
+## secret set
+
+한 시크릿을 생성 또는 업데이트합니다.
+
+```bash
+secret set DB_URL=postgres://localhost/prod --env prod
+secret set FEATURE_FLAG=enabled
+```
+
+`KEY=VALUE` 형식으로 한 인자에 전달 (쉘 파이프라인 호환).
+
+**플래그:**
+- `--env`: 환경 이름 (기본: resolved env)
+- `--quiet`: 상태 메시지 억제
+
+## secret diff
+
+현재 환경과 다른 환경의 차이를 비교합니다.
+
+```bash
+secret diff --against prod
+# local과 prod 간 어떤 키가 다른지 보기
+secret diff --against dev
+```
+
+**플래그:**
+- `--against` (필수): 비교 대상 환경 이름
+
+## secret run
+
+시크릿이 주입된 상태로 자식 명령을 실행합니다 (메모리 전용, 디스크 쓰기 없음).
+
+```bash
+secret run -- npm run dev
+secret run --env prod -- ./my-service
+secret run -- bash -c "echo \$DB_URL"
+```
+
+자식 프로세스는 모든 시크릿을 환경 변수로 봅니다. 부모 쉘의 다른 스텝은 볼 수 없습니다. `run`의 종료 코드는 자식의 종료 코드입니다 (CI 투명성).
+
+**플래그:**
+- `--env`: 환경 이름 (기본: resolved env)
+- `--project`: 프로젝트 이름 (선택, 기본: `.secretrc`)
+
+`--` 뒤로 모든 인자는 자식 명령입니다.
+
+## secret export
+
+환경의 모든 시크릿을 내보냅니다 (여러 형식).
+
+```bash
+secret export --format github-env  # $GITHUB_ENV 형식 (GitHub Actions)
+secret export --format dotenv      # .env 형식 (stdout)
+secret export --env prod
+```
+
+**플래그:**
+- `--format`: `dotenv` (기본) | `github-env` (GitHub Actions)
+- `--env`: 환경 이름 (기본: resolved env)
+- `--quiet`: 상태 메시지 억제
+
+## secret token
+
+서비스 토큰 (CI용)을 생성, 나열, 회수합니다. **Admin 토큰만 사용 가능**.
+
+```bash
+# 생성
+secret token create --name ci-github
+# → stdout에 plaintext 한 번만 출력
+
+# 나열
+secret token list
+# → id, name, admin, created, last-used, status
+
+# 회수 (soft revoke)
+secret token revoke --id <ID>
+```
+
+**플래그:**
+- `token create`: `--name` (필수)
+- `token revoke`: `--id` (필수)
+
+발급된 CI 토큰은 항상 non-admin입니다 (유출 시에도 새 토큰 생성·회수 불가).
+
+## secret webhook
+
+웹훅 (이벤트 subscription)을 생성, 나열, 활성화, 비활성화, 삭제합니다. **Admin 토큰만 사용 가능**.
+
+```bash
+# 생성
+secret webhook create \
+  --project comax --env prod \
+  --url https://deploy.internal/redeploy \
+  --events secret.upsert,secret.delete
+# → stdout에 서명 시크릿 한 번만 출력
+
+# 나열
+secret webhook list
+
+# 배달 상태 보기
+secret webhook deliveries --id <ID>
+
+# 비활성화 (새 이벤트는 중단, 이력 유지)
+secret webhook disable --id <ID>
+
+# 활성화
+secret webhook enable --id <ID>
+
+# 삭제
+secret webhook delete --id <ID>
+```
+
+**플래그:**
+- `webhook create`: `--project` (필수), `--url` (필수), `--env` (선택), `--events` (선택, 기본: 모든 이벤트)
+- `webhook deliveries`: `--id` (필수)
+
+서명 시크릿은 등록 시 **한 번만** 출력됩니다. 다시 조회할 수 없으므로 지금 저장하세요. 회전하려면 삭제 후 재등록.
+
+## 전역 플래그
+
+모든 커맨드는 다음을 지원합니다:
+
+```bash
+secret <command> --credentials /path/to/creds.json
+```
+
+`--credentials`를 지정하지 않으면 `~/.config/comax/credentials.json`을 사용합니다 (기본).
+
+## 환경 해석
+
+`pull`, `push`, `get`, `set`, `diff`, `run`, `export` 명령은 환경을 자동으로 해석합니다:
+
+1. `--env` 플래그 확인
+2. `.secretrc` 파일 확인 (현재 및 상위 디렉터리)
+3. 환경 변수 `COMAX_ENV` 확인
+
+확인되지 않으면 에러. `.secretrc`의 기본값은 `secret init` 때 저장됩니다.
+
+<Callout type="note">
+시크릿 값은 절대 로그에 기록되지 않습니다. 토큰도 마찬가지 (hash만 서버측 저장). 테스트가 이를 강제합니다.
+</Callout>

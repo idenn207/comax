@@ -1,0 +1,174 @@
+---
+title: GitHub Actions 통합
+description: composite action으로 워크플로에 Comax Secrets를 주입합니다.
+---
+
+## GitHub Actions 통합
+
+Comax Secrets를 GitHub Actions 워크플로에 주입하는 composite action 사용법. GitHub Secret에 시크릿을 하나하나 등록하지 않고, **CI 토큰 하나**로 서버의 시크릿을 워크플로 스텝에 넣습니다.
+
+## 주입 모델 두 가지
+
+| 모델 | 노출 범위 | 사용 시점 |
+|---|---|---|
+| **process-env** (기본, `run:`) | 지정 command의 자식 프로세스만. job의 다른 스텝은 보지 못함 | 거의 항상. 기본값 |
+| **github-env** (opt-in, `export-to: github-env`) | `$GITHUB_ENV`에 기록 → 이후 모든 스텝의 env에 노출 | 뒤따르는 별도 스텝이 시크릿을 자기 env로 받아야 할 때만 |
+
+기본은 process-env입니다. github-env는 노출을 job 전체로 넓히므로, 정말 필요한 경우에만 opt-in하세요.
+
+## 사전 준비
+
+### 1. CI 토큰 발급 (admin only)
+
+토큰 발급·회수는 **admin 토큰**(부트스트랩 토큰 또는 다른 admin)만 할 수 있습니다. 발급된 CI 토큰은 항상 **non-admin**이라, 유출돼도 추가 토큰을 만들거나 회수할 수 없습니다.
+
+```bash
+# admin 자격으로 로그인한 상태에서
+secret token create --name ci-github
+# → stdout에 plaintext 토큰이 한 번만 출력된다. 지금 복사해라.
+```
+
+발급된 plaintext를 GitHub 저장소의 **Actions secret**으로 등록합니다 (예: `COMAX_TOKEN`):
+
+**Settings → Secrets and variables → Actions → New secret**
+
+토큰 목록·회수:
+
+```bash
+secret token list                 # id·name·admin·created·last-used·status
+secret token revoke --id <ID>     # soft revoke — 즉시 인증 불가
+```
+
+### 2. CLI 바이너리 확보 (필수, `cli-path`)
+
+action에 `secret` CLI 바이너리 경로를 **직접 넘겨야 합니다** (`cli-path`).
+
+워크플로에서 소스로 빌드:
+
+```yaml
+- uses: actions/setup-go@v5
+  with: { go-version: "1.25" }
+- run: go build -o bin/secret ./cmd/cli   # 모노레포에서 직접 빌드
+```
+
+또는 아티팩트로 받아 경로를 지정:
+
+```yaml
+- uses: your-org/download-release-binary@v1
+  with: { binary: secret, output: ./bin/secret }
+```
+
+## process-env (기본)
+
+시크릿이 명령의 자식 프로세스에만 주입되고, job의 다른 스텝은 못 봅니다.
+
+```yaml
+- name: Run tests with secrets
+  uses: idenn207/comax-secrets@v1
+  with:
+    server: https://secrets.example.com
+    token: ${{ secrets.COMAX_TOKEN }}
+    project: my-app
+    env: ci
+    cli-path: ./bin/secret
+    run: npm test
+```
+
+`run:`에 넘긴 명령은 시크릿이 env로 주입된 상태로 실행됩니다. 워크플로의 다른 스텝은 그 시크릿을 볼 수 없습니다.
+
+## github-env (opt-in, job 전역)
+
+시크릿을 `$GITHUB_ENV`에 기록해 이후 모든 스텝에 노출합니다 (각 값은 `::add-mask::`로 마스킹됨).
+
+```yaml
+- name: Load secrets job-wide
+  uses: idenn207/comax-secrets@v1
+  with:
+    server: https://secrets.example.com
+    token: ${{ secrets.COMAX_TOKEN }}
+    project: my-app
+    env: ci
+    cli-path: ./bin/secret
+    export-to: github-env
+
+- name: A later step
+  run: echo "Using $DB_URL"  # 앞 스텝의 시크릿이 여기서도 보임 (마스킹됨)
+
+- name: Another step
+  run: ./deploy.sh           # 여기서도 시크릿 accessible
+```
+
+## Action 입력 8개
+
+| 입력 | 필수 | 설명 |
+|---|---|---|
+| `server` | 예 | 서버 베이스 URL (예: `https://secrets.example.com`) |
+| `token` | 예 | 서비스 토큰 (GitHub Secret으로 보관, `${{ secrets.COMAX_TOKEN }}`) |
+| `project` | 예 | 시크릿을 읽을 프로젝트 이름 |
+| `env` | 예 | 환경 이름 (예: `ci`, `staging`) |
+| `run` | 조건부 | process-env 모드: 실행할 command (required unless `export-to` set) |
+| `export-to` | 조건부 | job-wide 모드: `github-env` (또는 비워둠) |
+| `cli-path` | 예 | 빌드된 `secret` CLI 바이너리 경로 (필수 in M3) |
+| `cli-version` | 아니오 | M8 예약: 다운로드 버전 (M3에서는 미사용) |
+
+## 자격증명 처리 (보안)
+
+action은 자격증명을 `$RUNNER_TEMP/comax-creds.json`에 **일회성**으로 쓰고, 기본 `~/.config/comax/credentials.json` 경로는 **건드리지 않습니다**. 마지막 cleanup 스텝(`if: always()`)이 성공/실패와 무관하게 이 파일을 삭제하므로, 러너 디스크에 자격증명이 남지 않습니다. 토큰은 env로만 전달되어 프로세스 목록·명령줄에 노출되지 않습니다.
+
+## 마스킹 & 한계 (정직한 경계)
+
+운영자가 실제 보호 범위 위에서 워크플로 위생을 설계할 수 있도록 한계를 명시합니다.
+
+- **마스킹은 best-effort입니다.** `::add-mask::`는 GitHub이 로그에서 그 문자열을 가릴 뿐이며, 매우 짧거나 저엔트로피인 값은 부분적으로 새어나올 수 있습니다. **process-env 기본 모드는 값을 job 로그 경로에 아예 올리지 않으므로 이 한계를 회피합니다.**
+- **github-env는 노출을 job 전체로 넓힙니다.** opt-in한 순간부터 뒤따르는 모든 스텝(서드파티 action 포함)이 시크릿을 env로 볼 수 있습니다. 신뢰할 수 없는 스텝이 뒤에 있다면 process-env를 사용하세요.
+- **CI 토큰은 project/env 단위 read scope가 없습니다.** non-admin CI 토큰도 현재는 그 서버의 **모든 project/env 시크릿을 read**할 수 있습니다. scope 미들웨어는 M4로 이연됐습니다. M3에서 blast radius를 줄이는 수단은 **발급을 admin-only로 제한**하고, 유출 의심 시 **즉시 revoke**하는 것입니다.
+- **revoke는 회수지 소급 방지가 아닙니다.** 회수 이전에 이미 read된 값은 되돌릴 수 없습니다. 토큰이 유출됐다면 회수와 별개로 해당 시크릿 값을 로테이션해야 합니다.
+
+## 완전 워크플로 예제
+
+```yaml
+name: Build & Test
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.25" }
+      
+      - run: go build -o bin/secret ./cmd/cli
+      
+      - name: Run tests with secrets
+        uses: idenn207/comax-secrets@v1
+        with:
+          server: ${{ secrets.COMAX_SERVER }}
+          token: ${{ secrets.COMAX_TOKEN }}
+          project: my-app
+          env: ci
+          cli-path: ./bin/secret
+          run: make test
+      
+      - name: Deploy (if secrets available)
+        if: success()
+        uses: idenn207/comax-secrets@v1
+        with:
+          server: ${{ secrets.COMAX_SERVER }}
+          token: ${{ secrets.COMAX_TOKEN }}
+          project: my-app
+          env: prod
+          cli-path: ./bin/secret
+          export-to: github-env
+      
+      - name: Deploy step
+        if: success()
+        run: ./scripts/deploy.sh
+```
+
+## 관련 문서
+
+- [위협 모델](/docs/security) — CI 토큰 권한, soft revoke
+- [CLI 레퍼런스](/docs/cli) — `secret token` 명령

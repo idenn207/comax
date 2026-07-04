@@ -1,0 +1,150 @@
+---
+title: 보안 및 위협 모델
+description: 시스템이 보호하는 것, 그렇지 않은 것, 운영자 의무사항.
+---
+
+## 보안 및 위협 모델
+
+이 문서는 Comax Secrets가 보호하는 것과 그렇지 않은 것, 그리고 운영자 의무사항을 명시합니다. 자가호스팅 모델이므로 운영자가 호스트, 데이터베이스, 마스터 키를 소유합니다. 신뢰 경계는 그에 따라 그려집니다.
+
+## 대상 사용자
+
+NAS, 소규모 VPS, 홈랩 VM에서 서버를 실행하는 자가호스팅 운영자. CLI는 개발 워크스테이션과 CI 러너에서 사용됩니다. M1은 다중 테넌트 이야기를 지원하지 않습니다.
+
+## 시스템이 보호하는 것
+
+| 위협 | 완화 |
+|---|---|
+| 데이터베이스 캐주얼 유출 (예: USB 백업 분실) | 모든 시크릿 값은 AES-256-GCM으로 암호화. 마스터 키 없이는 DB가 불투명 |
+| 키 파일 캐주얼 유출 | 파일 모드 `0600`, 서버 사용자 소유. Unix에서 서버가 부팅 거부. Windows는 NTFS ACL |
+| 토큰 개발 워크스테이션 탈취 | 토큰은 무작위 불투명 문자열 (32바이트, base64url). 서버측에는 SHA-256 hash만 저장. 회수될 때까지 사용 가능 |
+| 토큰 로그 누출 | 서버는 발급 이후 평문 토큰을 기록하지 않음. CLI는 토큰을 에코하지 않음. 부트스트랩 평문은 stdout에 **정확히 한 번** |
+| 낡은 ciphertext 재사용 | 각 시크릿은 단조 버전 + 불변 `secret_versions` 이력. `audit_log`는 모든 변경을 기록 |
+| 인라인 참조 교차 환경 오염 (`${{ shared.KEY }}`) | pull 시점에 해석, 쓰기 시점이 아님. 순환 감지로 `shared → app → shared` 체인 거부 |
+| `secret run` 중 시크릿 디스크 접촉 | CLI는 메모리에서 풀고, `exec.Command`의 `Env`로 자식에 주입. 통합 테스트가 실행 중 새 파일 쓰기 없음을 검증 |
+
+## 시스템이 보호하지 않는 것
+
+| 위협 | 이유 |
+|---|---|
+| 마스터 키 손상 | 키는 신뢰 앵커. 운영자가 `keys/master.key` 유출하면 모든 시크릿 복호화 가능. M1은 파일 온디스크. pluggable `KeyProvider` 인터페이스로 OS keyring / cloud KMS 지원 미연기 |
+| 서버 호스트 손상 | root 권한 공격자는 DB + 키 파일을 읽을 수 있음. M1은 의도적으로 HSM 설계가 아님 |
+| 개발 워크스테이션 손상 | 탈취된 `~/.config/comax/credentials.json` (모드 `0600`)로 토큰 소유자가 읽을 수 있는 모든 시크릿 pull 가능. 토큰 회수 (서버측, M1에서는 수동 SQL), 새 부트스트랩 토큰으로 대체 |
+| 운영자 강압 / 법적 강제 | 자가호스팅은 운영자가 관리인. 제3자 에스크로우 없음 |
+| Side-channel 공격 (Spectre, Rowhammer) | 범위 외 |
+| 토큰 auth 비교 타이밍 공격 | HMAC 비교는 `subtle.ConstantTimeCompare` 사용. SQL 조회는 상수시간이 아니지만 표면적은 작음 (요청당 인덱싱된 조회 1개) |
+
+## 운영자 의무사항
+
+시스템이 위 보호를 제공하려면 다음을 지켜야 합니다:
+
+### 1. 마스터 키 권한
+
+`--master-key-file` 경로 (기본 `./keys/master.key`)의 파일은 모드 `0600`, 서버 UID 소유여야 합니다. Unix에서 서버는 더 넓은 모드면 부팅 거부. Windows에서는 경고를 로그하고 계속하므로 **NTFS ACL로 보호하세요**.
+
+```bash
+ls -la ./keys/master.key
+# -rw------- 1 server server 32 Jul 04 12:00 ./keys/master.key
+```
+
+### 2. 백업
+
+`data/secrets.db` **와** `keys/master.key` 모두를 같은 위치·빈도로 백업합니다. 둘 없이는 쓸모 없습니다.
+
+```bash
+# 예: 주간 스냅샷
+rsync -av ./data/ /backup/comax/data/
+rsync -av ./keys/ /backup/comax/keys/
+```
+
+### 3. 부트스트랩 토큰 캡처
+
+평문 부트스트랩 토큰은 stdout에 **정확히 한 번** 출력됩니다:
+
+```bash
+docker compose logs secret-server | grep -A 1 "bootstrap admin token"
+```
+
+로그가 순환하기 전에 캡처해 암호 관리자에 저장하세요 (`.env` 파일이 아님 — 그건 이 도구의 목적을 무효화함).
+
+### 4. 토큰 회전
+
+개발자가 떠나면 토큰을 회수하세요. M1에는 UI가 없으므로 수동 SQL이 escape hatch입니다. 스키마는 안정적이고, 행 삭제는 안전합니다 (`service_tokens` 테이블):
+
+```sql
+UPDATE service_tokens SET revoked_at = NOW() WHERE id = 'token-id';
+```
+
+### 5. TLS 종료
+
+이 바이너리는 평문 HTTP를 사용합니다. localhost를 벗어나는 배포는 **반드시** 리버스 프록시 (Caddy / nginx / Traefik)를 앞에 두세요. 토큰은 bearer 자격증명이므로 TLS 보호 필수입니다.
+
+```bash
+# Caddy
+secrets.example.com {
+  reverse_proxy localhost:8080
+}
+```
+
+### 6. 소스 제어 배제
+
+`.gitignore`는 이미 `data/`, `keys/`, `*.key`, `.secretrc`, `.env`를 배제합니다. 저장소 오버라이드를 확인하세요.
+
+### 7. 마스터 키 회전
+
+M1 범위 밖 — 회전하려면 모든 행을 다시 암호화해야 함. 프로덕션에 가기 전에 계획하세요 (나중 마일스톤).
+
+## 브라우저 세션 (M2)
+
+대시보드는 bearer 토큰을 HTTP 쿠키로 감싸서 브라우저 보안 모델이 작동하게 합니다. M2 대시보드 도입은 M1 위협 모델을 약화시키지 않으며, 새로운 3개 표면을 추가하고 각각을 강화합니다:
+
+1. **쿠키**: `comax_session=<random>; HttpOnly; Secure; SameSite=Strict; Path=/`. 서버는 `SHA-256(token)` 저장 (bearer처럼). JS가 읽을 수 없고 (HttpOnly), cross-site 요청이 보낼 수 없음 (SameSite=Strict)
+2. **CSRF**: double-submit token. 모든 mutating 호출에 필수 (`X-CSRF-Token`). Bearer 요청은 skip (CLI는 쿠키 없음)
+3. **CSP**: per-request nonce. 일치하지 않는 inline script 차단
+4. **세션 수명**: 기본 30일. `/settings/sessions`에서 임의 세션 회수 가능
+5. **로그아웃**: `DELETE /api/v1/dashboard/session` 회수 + 쿠키 삭제. 탭 닫기는 회수하지 않음 (쿠키는 TTL까지 유효)
+
+정직한 한계:
+
+- **CSRF는 mutation만 보호합니다.** `GET` 요청은 cookie 단독 인증. 쿠키 한 장 탈취로 **모든 read 가능** (시크릿 값 포함). CSRF는 cross-site write만 방지
+- **회수는 회수지 소급 방지가 아닙니다.** 회수 전 이미 read된 값은 되돌릴 수 없음. 서비스 토큰 자체를 회수해 모든 세션 무력화하는 게 옳음
+- **보안 경계는 쿠키 보호입니다.** HttpOnly + Secure + SameSite=Strict + Path=/가 JS / cross-site / 평문 채널 유출 방지. 운영자 workstation 위생 (디바이스 잠금, 신뢰 브라우저, 공용 단말 미사용)이 마지막 방어선
+
+## 서비스 토큰 & CI (M3)
+
+M3은 GitHub Actions composite action과 토큰 관리 표면을 추가합니다. M1 규칙 "탈취된 평문 토큰은 회수될 때까지 사용 가능"이 이제 in-band에서 강제됨:
+
+1. **Admin-only 발급**: `service_tokens.is_admin`이 토큰 관리를 게이트. 발급된 CI 토큰은 항상 non-admin → 유출해도 추가 토큰 생성·회수 불가
+2. **soft revoke (양쪽 팔)**: bearer arm + dashboard session arm 모두 회수된 토큰 401
+3. **러너에 자격증명 없음**: action은 `$RUNNER_TEMP/comax-creds.json` 일회성 쓰기 → cleanup step이 삭제. 토큰은 env로만 전달 (프로세스 목록 미노출)
+4. **주입 모델**: 기본 `secret run` (process-env, 자식만), opt-in `export-to: github-env` (job 전체). 값은 `::add-mask::`로 마스킹되지만 best-effort
+
+정직한 한계:
+
+- **CI 토큰에는 project/env read scope가 없습니다.** non-admin CI 토큰도 **모든 project/env 시크릿 read** 가능. scope 미들웨어는 M4로 이연. 현재는 **발급 admin-only + soft revoke로 blast radius 제한**
+- **마스킹은 best-effort입니다.** 짧은/저엔트로피 값은 부분적으로 새어나올 수 있음. process-env 기본 모드는 값을 job 로그에 안 올리므로 이 회피
+- **github-env는 job 전체 노출을 넓힙니다.** opt-in 뒤로 모든 스텝이 시크릿 env로 봄. 신뢰 불가 스텝이 뒤에 있으면 process-env 사용
+- **회수는 소급 방지가 아닙니다.** 회수 전 read된 값은 로테이션으로만 대응
+
+## 웹훅 (M4)
+
+웹훅은 시크릿 변경 시 등록 URL로 서명 이벤트를 POST합니다. 자세한 사용법은 [webhooks.md](/docs/webhooks).
+
+- **등록·삭제는 admin 전용**: non-admin CI 토큰은 403. 유출된 토큰이 웹훅을 심어 트래픽 빼돌릴 수 없음
+- **페이로드에 시크릿 평문이 없음**: 이벤트는 metadata만 (project/env/key/version/action). 구조로 강제
+- **서명 시크릿 암호화 저장**: 마스터키로 암호화 (hash 아님 — 배달 시 HMAC에 평문 필요). 목록 API/CLI/대시보드는 ciphertext 제외, 발급 plaintext는 **1회만** 노출
+- **SSRF**: RFC1918 사설/loopback **허용** (웹훅 목적이 내부 서비스), link-local/cloud metadata **기본 차단** (169.254.0.0/16, `fe80::/10`, `169.254.169.254`). 방어: 스킴 제한, host resolve + metadata 거부, 리다이렉트 미추종, delivery `DialContext` IP 재검증, operator override CIDR
+- **at-least-once 배달**: 중복 가능하므로 수신자 멱등성 필수 (`X-Comax-Delivery` id). 원자적 lease claim으로 동시 워커 중복 방지
+- **서명 시크릿 회전**: delete + recreate. in-place 회전은 backlog 이연
+
+## 감사 로그
+
+모든 상태 변경은 `audit_log` 행을 기록합니다 (acting token ID + 불투명 target string). M1은 로그 rotation을 하지 않습니다. 고용량 배포는 테이블 크기를 모니터하고 규정 준수 일정에 맞게 truncate/archive하세요.
+
+## 취약점 보고
+
+리포지토리에 private security advisory를 열거나 운영자에게 이메일하세요. 단일 관리자 프로젝트이므로 CVE 공개 조율은 best-effort입니다.
+
+<Callout type="warn">
+운영자 의무사항 위반은 위 보호를 무효화합니다. 프로덕션 배포 전에 체크리스트를 검토하세요.
+</Callout>

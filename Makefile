@@ -12,6 +12,7 @@
 #   cover               Print per-function coverage summary
 #   lint                golangci-lint
 #   sdk                 Install + typecheck + lint + test + build the TS SDK
+#   website             Install + typecheck + lint + build + verify the docs site
 #   bench               Run benchmarks (no tests)
 #   docker              Build the server container image
 #   xbuild              Cross-compile CLI for NAS targets (amd64, arm64, arm/v7)
@@ -34,13 +35,14 @@ COVER_OUT     := coverage.out
 DASHBOARD_DIR := web/dashboard
 DASHBOARD_OUT := internal/server/dashboard/dist
 SDK_DIR       := sdk
+WEBSITE_DIR   := website
 
 # Pull version from git when available; fall back to "dev" for clean trees.
 VERSION   := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS   := -X '$(PKG)/internal/version.Version=$(VERSION)'
 
 .PHONY: build build-server-nodash test cover lint bench docker xbuild clean \
-        dashboard dashboard-clean dev dev-api dev-web sdk
+        dashboard dashboard-clean dev dev-api dev-web sdk website
 
 # Production build: dashboard first (so dist/ is populated), then the
 # server binary with -tags embed_dashboard so //go:embed picks it up.
@@ -100,6 +102,20 @@ sdk:
 	cd $(SDK_DIR) && $(NPM) run lint
 	cd $(SDK_DIR) && $(NPM) run test
 	cd $(SDK_DIR) && $(NPM) run build
+
+# Build + verify the marketing/docs website (@comax/website, Next.js). Like
+# `sdk`, deliberately NOT a dependency of `test`/`lint` (Go-only). CI runs
+# `website` via .github/workflows/website.yml; Vercel deploys via Git
+# integration (operator-linked project, not this Makefile).
+website:
+	cd $(WEBSITE_DIR) && $(NPM) ci
+	cd $(WEBSITE_DIR) && $(NPM) run typecheck
+	cd $(WEBSITE_DIR) && $(NPM) run lint
+	cd $(WEBSITE_DIR) && $(NPM) run build
+	cd $(WEBSITE_DIR) && node scripts/check-token-parity.mjs
+	cd $(WEBSITE_DIR) && node scripts/check-docs-coverage.mjs
+	cd $(WEBSITE_DIR) && node scripts/check-docs-drift.mjs
+	cd $(WEBSITE_DIR) && node scripts/check-site-url.mjs
 
 bench:
 	$(GO) test -bench=. -run=^$$ -benchmem ./...

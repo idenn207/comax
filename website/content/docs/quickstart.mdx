@@ -1,0 +1,122 @@
+---
+title: 빠른 시작
+description: 5분 안에 Docker Compose로 서버를 올리고 첫 시크릿을 실행하세요.
+---
+
+## 5분 워크스루
+
+깨끗한 클론에서 `secret run`까지 5분. 목표는 수동으로 동기화하던 `.env` 파일 하나를 서버로 관리되는 저장소로 바꾸는 것입니다.
+
+## 1단계: 서버 시작
+
+```bash
+git clone https://github.com/idenn207/comax-secrets.git
+cd comax-secrets
+
+docker compose -f deploy/compose/docker-compose.yml up -d --build
+```
+
+첫 부팅 시 세 가지가 자동으로 일어납니다:
+
+1. `./data/secrets.db` (SQLite 데이터베이스) 생성
+2. `./keys/master.key` (32바이트 AES-256 마스터 키, 모드 `0600`) 생성
+3. **부트스트랩 어드민 토큰** 컨테이너 로그에 한 번만 출력
+
+지금 토큰을 캡처하세요 — 다시 조회할 수 없습니다:
+
+```bash
+docker compose -f deploy/compose/docker-compose.yml logs secret-server \
+  | grep -A 1 "bootstrap admin token"
+```
+
+출력 예:
+```
+Comax Secrets: bootstrap admin token (shown ONCE):
+    <long-opaque-token-here>
+```
+
+## 2단계: CLI 설치
+
+```bash
+make build       # produces ./bin/secret and ./bin/secret-server
+export PATH="$PWD/bin:$PATH"
+```
+
+## 3단계: 로그인
+
+1단계에서 캡처한 토큰을 붙여넣으세요:
+
+```bash
+secret login --server http://localhost:8080 --token <token-from-step-1>
+```
+
+이 명령은 `~/.config/comax/credentials.json`에 자격증명을 저장합니다 (모드 `0600`). 평문 토큰은 여기에만 저장되며, 서버는 SHA-256 해시만 보관합니다.
+
+## 4단계: 프로젝트 초기화
+
+작업할 디렉터리에서:
+
+```bash
+cd my-app
+secret init --project my-app \
+            --envs local,dev,prod \
+            --default-env local
+```
+
+이 명령은 서버에 프로젝트 + 세 개 환경을 생성하고, 현재 디렉터리에 `.secretrc` 파일을 씁니다. `.secretrc`는 프로젝트와 기본 환경을 고정합니다 (`.gitignore`에 이미 등록됨).
+
+## 5단계: 기존 `.env` 마이그레이션
+
+기존 `.env` 파일이 있다면:
+
+```bash
+cat .env
+# DB_URL=postgres://localhost/dev
+# API_KEY=sk-abc123
+# REDIS_URL=redis://localhost:6379
+```
+
+서버로 한 번에 푸시:
+
+```bash
+secret push --file .env
+```
+
+각 키는 `local` 환경 아래 새 버전으로 업로드됩니다. 이제 파일을 삭제할 수 있습니다:
+
+```bash
+rm .env
+```
+
+## 6단계: 시크릿과 함께 실행
+
+제목 명령. `secret run -- <cmd>`는 메모리에서 환경을 풀 (디스크에 쓰지 않음), 부모 쉘의 환경과 병합한 후, 시크릿이 주입된 상태로 `<cmd>`를 포크합니다.
+
+```bash
+secret run -- npm run dev
+# 또는
+secret run --env prod -- ./my-binary
+```
+
+자식 프로세스는 `DB_URL`, `API_KEY` 등을 직접 봅니다 — 마치 `source .env`를 먼저 한 것처럼, 단, 값은 디스크에 살지 않습니다.
+
+## 7단계: 환경 간 시크릿 업데이트
+
+```bash
+secret set NEW_FLAG=enabled --env local
+secret set NEW_FLAG=enabled --env dev
+secret set NEW_FLAG=enabled --env prod
+```
+
+`secret diff --against prod`는 현재 환경과 `prod` 환경의 차이를 보여줍니다.
+
+## 다음은?
+
+- 보안 확인: [위협 모델](/docs/security) — 운영자 의무사항 + 신뢰 경계
+- 프로덕션 배포: [셀프호스팅](/docs/self-host) — 외부 리버스 프록시, 백업, 토큰 관리
+- CI 통합: [GitHub Actions](/docs/github-actions) — 워크플로에 시크릿 주입
+- 언어 SDK: [Node/TypeScript SDK](/docs/sdk) — 애플리케이션 코드에서 런타임 페칭
+
+<Callout type="note">
+If you miss the bootstrap token, delete `./data/secrets.db` and `./keys/master.key` and restart — the server will mint a fresh token on the next boot.
+</Callout>
