@@ -205,6 +205,51 @@ jobs:
           if [ "$JS_BYTES"  -gt "$JS_MAX"  ]; then echo "JS gzip budget exceeded";  exit 1; fi
           if [ "$CSS_BYTES" -gt "$CSS_MAX" ]; then echo "CSS gzip budget exceeded"; exit 1; fi
 
+  # TypeScript SDK (@comax-secrets/sdk) quality gate. Mirrors the dashboard
+  # job. Required check (M5 Codex plan-gate F4) so a TS SDK regression can't
+  # slip past the Go-only gates. Deliberately its own job — `make test` stays
+  # Go-only, so Node-less contributors are unaffected (Makefile header note).
+  sdk:
+    name: sdk
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: sdk/package-lock.json
+
+      - name: install
+        run: npm ci
+
+      - name: lint
+        run: npm run lint
+
+      - name: typecheck
+        run: npm run typecheck
+
+      - name: unit tests (coverage >= 80%)
+        run: npm run test:coverage
+
+      - name: build (dual ESM + CJS + dts)
+        run: npm run build
+
+      # Prove both consumption paths resolve — the exports map is the most
+      # common way an SDK breaks silently for Next.js consumers.
+      - name: dual-format load smoke
+        run: |
+          set -euo pipefail
+          node -e "import('./dist/index.js').then(m => { if (typeof m.createClient !== 'function') { console.error('esm export missing'); process.exit(1); } })"
+          node -e "if (typeof require('./dist/index.cjs').createClient !== 'function') { console.error('cjs export missing'); process.exit(1); }"
+          node -e "import('./dist/webhook.js').then(m => { if (typeof m.verifyWebhookSignature !== 'function') { console.error('esm webhook export missing'); process.exit(1); } })"
+
+      - name: pack dry-run (files/exports, no secret/sourcemap leak)
+        run: npm pack --dry-run
+
   # Per-route axe-core WCAG 2.2 AA gate. Depends on `dashboard` so we
   # only spend Playwright minutes on builds that already pass cheap
   # checks. Server binary is built with -tags embed_dashboard so the

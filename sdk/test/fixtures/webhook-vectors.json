@@ -1,0 +1,23 @@
+[
+  {
+    "name": "secret-updated",
+    "secret": "whsec_test_key_1",
+    "timestamp": "1751600000",
+    "body": "{\"event\":\"secret.updated\",\"project\":\"api\",\"env\":\"prod\",\"key\":\"DB_URL\"}",
+    "signature": "sha256=7519ac02b0f9d7f6ca08648d4f934593ad71138c652c0a991cfe1eb38dc84f39"
+  },
+  {
+    "name": "secret-rollback",
+    "secret": "another-signing-secret",
+    "timestamp": "1751600123",
+    "body": "{\"event\":\"secret.rollback\",\"project\":\"web\",\"env\":\"dev\"}",
+    "signature": "sha256=a692d222b7e19b36b8f627d21804bd3f5087bbe2b82916a7e61e152b128180df"
+  },
+  {
+    "name": "empty-body",
+    "secret": "k",
+    "timestamp": "1700000000",
+    "body": "",
+    "signature": "sha256=5c2999a43333a6877f49c8003f235c4f6de40f85b1b7414b70bd470a8db53d97"
+  }
+]

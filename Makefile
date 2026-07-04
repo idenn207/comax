@@ -11,6 +11,7 @@
 #   test                Race-enabled unit tests with coverage profile
 #   cover               Print per-function coverage summary
 #   lint                golangci-lint
+#   sdk                 Install + typecheck + lint + test + build the TS SDK
 #   bench               Run benchmarks (no tests)
 #   docker              Build the server container image
 #   xbuild              Cross-compile CLI for NAS targets (amd64, arm64, arm/v7)
@@ -32,13 +33,14 @@ BIN_DIR       := bin
 COVER_OUT     := coverage.out
 DASHBOARD_DIR := web/dashboard
 DASHBOARD_OUT := internal/server/dashboard/dist
+SDK_DIR       := sdk
 
 # Pull version from git when available; fall back to "dev" for clean trees.
 VERSION   := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS   := -X '$(PKG)/internal/version.Version=$(VERSION)'
 
 .PHONY: build build-server-nodash test cover lint bench docker xbuild clean \
-        dashboard dashboard-clean dev dev-api dev-web
+        dashboard dashboard-clean dev dev-api dev-web sdk
 
 # Production build: dashboard first (so dist/ is populated), then the
 # server binary with -tags embed_dashboard so //go:embed picks it up.
@@ -86,6 +88,18 @@ cover: test
 
 lint:
 	golangci-lint run
+
+# Build + verify the TypeScript SDK (@comax-secrets/sdk). Deliberately NOT a
+# dependency of `test`/`lint`: those stay Go-only so contributors without a
+# Node toolchain can still run them (see header note). CI runs `sdk` as a
+# required check via the `sdk` job in .github/workflows/ci.yml (npm publish is
+# a separate manual workflow, .github/workflows/sdk-publish.yml).
+sdk:
+	cd $(SDK_DIR) && $(NPM) ci
+	cd $(SDK_DIR) && $(NPM) run typecheck
+	cd $(SDK_DIR) && $(NPM) run lint
+	cd $(SDK_DIR) && $(NPM) run test
+	cd $(SDK_DIR) && $(NPM) run build
 
 bench:
 	$(GO) test -bench=. -run=^$$ -benchmem ./...
