@@ -1,6 +1,6 @@
 # Report: M6 — Website + Docs (Next.js, Vercel)
 
-**Plan**: [.claude/plans/comax-secrets-m6-website-docs.plan.md](../plans/comax-secrets-m6-website-docs.plan.md)
+**Plan**: [.claude/plans/completed/comax-secrets-m6-website-docs.plan.md](../plans/completed/comax-secrets-m6-website-docs.plan.md)
 **Milestone**: PRD #6 — Website + Docs (Next.js, Vercel)
 **Branch**: `feat/m6-website-docs`
 

@@ -2,15 +2,14 @@
 state_version: 1
 task_fingerprint: comax-secrets-m6-website-docs
 created_at: 2026-06-13T09:30:53.231Z
-updated_at: 2026-07-04T08:55:29.200Z
+updated_at: 2026-07-04T13:24:24.995Z
 last_event: stop_loop_pass
 last_event_at: 2026-07-04T08:47:50.399Z
 unsafe_checkpoint: false
 confirm_required: false
 next_chunk: |
-  M6 구현+검증 완료 (feat/m6-website-docs 브랜치, uncommitted 워킹트리). auto-chain이
-  cost hard-ceiling으로 commit 전 일시정지. 재개: /mccp:prp-commit 후 /mccp:pr
-  (새 세션에서 예산 리셋됨). 작업은 디스크에 안전.
+  M6 완료·머지(PR #16) + 문서 정합화(plan 아카이브·PRD complete·backlog). 활성 작업
+  없음. 다음 PRD 마일스톤 선택 대기.
 session_end_imminent: true
 chain_aborted: true
 dep_check_at: 2026-06-15T16:09:58.866Z
@@ -19,7 +18,7 @@ dep_check_at: 2026-06-15T16:09:58.866Z
 Comax Secrets M6 (Website + Docs, Next.js/Vercel). /mccp:work full 체인.
 
 ## Plan
-- .claude/plans/comax-secrets-m6-website-docs.plan.md (plan-codex + implement-codex receipt valid; 머지 후 completed/ 아카이브 예정)
+- .claude/plans/completed/comax-secrets-m6-website-docs.plan.md (아카이브 완료; plan-codex + implement-codex receipt valid)
 
 ## Done
 - M6 전체 구현: website/ (Next.js 15 App Router + React 19 + Tailwind 3.4 + Vercel), 별도 코드베이스(OQ#4 상속)
@@ -30,18 +29,19 @@ Comax Secrets M6 (Website + Docs, Next.js/Vercel). /mccp:work full 체인.
 - 리포 통합: Makefile website 타깃, .github/workflows/website.yml, README link-out, docs stub(quickstart/github-actions/webhooks), PRD #6 complete
 - report: .claude/reports/comax-secrets-m6-website-docs.report.md
 - 커밋 전 코드 리뷰(/mccp:code-review Local Mode) + 수정 반영: 도메인 리뷰어 4종 병렬, CRITICAL/HIGH 0, npm audit 0 vulns, 재검증 green
+- PR #16 머지 완료. CI 정합화: website.yml drift 트리거에 소스 계약 경로 추가(Codex stop-review), lockfile 클린 재생성(npm ci EUSAGE fix). 문서 정합화: plan→completed/ 아카이브, PRD #6 링크 갱신, backlog에 L2·CSP 후속 기록.
 
 ## In Progress
-커밋 + PR (feat/m6-website-docs → master) 진행 중. 커밋 전 코드 리뷰 + 수정 완료.
+없음 — M6 종료.
 
 ## Next Step
-PR 리뷰·머지 → plan을 .claude/plans/completed/ 로 아카이브.
+다음 PRD 마일스톤 선택(M7+). M6 후속(비차단): backlog의 L2(JSON-LD image)·CSP nonce/hash 강화·source-generated reference(F2).
 
 ## Last Decision
-/mccp:code-review(Local Mode): 도메인 전문 리뷰어 4종 병렬 + 적대적 검증. CRITICAL/HIGH 0 — 오탐 3건(SEO OG-이미지 자동주입, TS SSG 500-크래시×2) 검증 후 기각. 수정 적용: M1(website/.gitignore에 /.claude/ — hook-trace 누출 차단)·M2(dep 취약점, npm audit 0)·M3(prod-gated CSP+HSTS)·L1(verify에 check:site-url)·L3(coverage 중복 slug 검사); L2(JSON-LD image)는 impeccable-guard로 백로그. 파괴적 dep 상향(next-mdx-remote 5→6 HIGH, next 15.1.3→15.5.20 postcss)은 build 게이트로 회귀 0 확인 후 채택. postcss는 audit-fix --force의 next@9.3.3 다운그레이드 거부, overrides:$postcss로 next 중첩 copy까지 정밀 dedupe.
+M6 머지(PR #16) 후 문서 정합화. 세션 처리 요약: 커밋 전 코드 리뷰(CRITICAL/HIGH 0, 오탐 3건 기각)로 M1~L3 수정; 파괴적 dep 상향(next-mdx-remote 6·next 15.5.20)은 build 게이트로 회귀 0 확인 후 채택; Codex stop-review 지적(docs-drift 트리거가 소스 계약 변경 미포착)으로 website.yml paths에 cmd/cli/main.go·action.yml·sdk/src/index.ts 추가; CI npm ci EUSAGE(Windows 생성 lockfile의 Linux optional dep 누락)는 lockfile 클린 재생성으로 해결; postcss는 overrides:$postcss로 정밀 dedupe(audit-fix --force의 next@9.3.3 다운그레이드 거부).
 
 ## Open Questions
 
 
 ## Last Updated
-2026-07-04T08:55:29.200Z
+2026-07-04T13:24:24.995Z
