@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Stray Claude Code session/hook-trace state that lands under the SDK worktree.
+# Never part of the package (files: ["dist"]) nor the repo — keep it out of
+# `git add sdk/`.
+.claude/

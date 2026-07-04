@@ -1,0 +1,81 @@
+name: sdk-publish
+
+# Manual npm publish for @comax-secrets/sdk with provenance. Publishing is a
+# deliberate operator action (M5 decision D7): it requires the NPM_TOKEN repo
+# secret and an owner-triggered dispatch — never automatic. Defaults to a
+# dry-run so an accidental dispatch does not publish, and a LIVE publish is
+# ref-guarded to the default branch (master) or an exact vN.N.N release tag so
+# an unreviewed feature branch cannot ship to npm (see "guard live publish ref").
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Only run npm publish --dry-run (no actual publish)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: sdk
+    permissions:
+      contents: read
+      id-token: write # required for npm provenance attestation
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+          cache: npm
+          cache-dependency-path: sdk/package-lock.json
+
+      # Ref guard: a LIVE publish (dry_run=false) is only permitted from the
+      # reviewed release line — the default branch (master) or an EXACT vN.N.N
+      # release tag. The tag pattern is anchored at both ends (^...$): a prefix
+      # match would let a suffixed tag (v1.2.3-wip, v1.2.3foo) that an operator
+      # pointed at an unreviewed commit slip a live publish through. Prerelease
+      # tags are intentionally rejected — add them here deliberately if ever
+      # needed. workflow_dispatch otherwise lets an operator run from ANY
+      # branch, shipping unreviewed code to npm. Runs before install/build so a
+      # mis-targeted live dispatch fails fast, and fails LOUD (never a silent
+      # skip) so the operator can't mistake a no-op green run for a publish. D7.
+      - name: guard live publish ref
+        if: ${{ !inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          ref="${GITHUB_REF:-}"
+          if [ "$ref" = "refs/heads/master" ] || printf '%s' "$ref" | grep -qE '^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "ref '$ref' permitted for live publish"
+          else
+            echo "::error::live publish blocked — allowed only from refs/heads/master or an exact vN.N.N release tag, no suffix (got '$ref'). Re-dispatch from master or a clean release tag, or use dry_run=true."
+            exit 1
+          fi
+
+      - name: install
+        run: npm ci
+
+      # Gate publish on green tests so a workflow_dispatch from any ref can
+      # never ship an untested build. The PR CI (ci.yml `sdk` job) is the
+      # first-line guard; this is defence-in-depth for the manual publish path.
+      - name: test
+        run: npm test
+
+      - name: build
+        run: npm run build
+
+      - name: publish (dry-run)
+        if: inputs.dry_run
+        run: npm publish --provenance --access public --dry-run
+
+      - name: publish (live)
+        if: ${{ !inputs.dry_run }}
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
