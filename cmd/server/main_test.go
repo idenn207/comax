@@ -59,7 +59,7 @@ func findFreePort(t *testing.T) int {
 
 func TestParseFlags_DefaultsAndOverrides(t *testing.T) {
 	// Snapshot and clear COMAX_* env so the defaults are deterministic.
-	for _, k := range []string{"COMAX_LISTEN", "COMAX_DB_PATH", "COMAX_MASTER_KEY_FILE", "COMAX_AUTO_GENERATE_KEY"} {
+	for _, k := range []string{"COMAX_LISTEN", "COMAX_DB_PATH", "COMAX_MASTER_KEY_FILE", "COMAX_AUTO_GENERATE_KEY", "COMAX_WEBHOOK_POLL"} {
 		t.Setenv(k, "")
 	}
 	cfg, err := parseFlags(nil, io.Discard)
@@ -72,13 +72,29 @@ func TestParseFlags_DefaultsAndOverrides(t *testing.T) {
 	if !cfg.autoGenKey {
 		t.Error("autoGenKey default should be true")
 	}
+	if cfg.webhookPoll != 10*time.Second {
+		t.Errorf("default webhookPoll = %v; want 10s", cfg.webhookPoll)
+	}
 
-	cfg2, err := parseFlags([]string{"--listen", ":9999", "--db", "/tmp/x.db"}, io.Discard)
+	cfg2, err := parseFlags([]string{"--listen", ":9999", "--db", "/tmp/x.db", "--webhook-poll-interval", "3s"}, io.Discard)
 	if err != nil {
 		t.Fatalf("parseFlags overrides: %v", err)
 	}
 	if cfg2.listenAddr != ":9999" || cfg2.dbPath != "/tmp/x.db" {
 		t.Errorf("override = %+v; want :9999 and /tmp/x.db", cfg2)
+	}
+	if cfg2.webhookPoll != 3*time.Second {
+		t.Errorf("webhook-poll-interval override = %v; want 3s", cfg2.webhookPoll)
+	}
+
+	// COMAX_WEBHOOK_POLL env is honored as the default when the flag is absent.
+	t.Setenv("COMAX_WEBHOOK_POLL", "45s")
+	cfg3, err := parseFlags(nil, io.Discard)
+	if err != nil {
+		t.Fatalf("parseFlags env: %v", err)
+	}
+	if cfg3.webhookPoll != 45*time.Second {
+		t.Errorf("COMAX_WEBHOOK_POLL env → %v; want 45s", cfg3.webhookPoll)
 	}
 }
 

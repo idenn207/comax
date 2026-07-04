@@ -15,8 +15,12 @@ containers.
 > M3 ships GitHub Actions integration: a composite action that injects
 > secrets into a workflow (process-env by default, opt-in job-wide
 > github-env), admin-only token issuance, and soft revoke — see
-> [`docs/github-actions.md`](docs/github-actions.md). Next gate: M4
-> webhooks + secret referencing/overrides. See
+> [`docs/github-actions.md`](docs/github-actions.md). M4 ships webhooks:
+> a signed, metadata-only event POSTed to an operator URL when a secret
+> changes (transactional outbox, atomic delivery worker, SSRF-hardened,
+> admin-only), plus a dashboard Webhooks screen. Secret referencing /
+> overrides were pre-shipped by the M1/M2 resolver. See
+> [`docs/webhooks.md`](docs/webhooks.md). Next gate: M5 Node/TS SDK. See
 > [`.claude/plans/completed/comax-secrets.plan.md`](.claude/plans/completed/comax-secrets.plan.md)
 > for the M1 task list,
 > [`.claude/plans/completed/comax-secrets-dashboard.plan.md`](.claude/plans/completed/comax-secrets-dashboard.plan.md)

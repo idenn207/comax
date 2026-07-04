@@ -29,7 +29,8 @@ func (k staticKey) Key(_ context.Context) ([]byte, error) { return k, nil }
 type testServer struct {
 	srv    *httptest.Server
 	db     *sql.DB
-	bearer string // populated after bootstrap()
+	keys   crypto.KeyProvider // same master key the server seals with
+	bearer string             // populated after bootstrap()
 }
 
 func newTestServer(t *testing.T) *testServer {
@@ -48,11 +49,12 @@ func newTestServer(t *testing.T) *testServer {
 		t.Fatalf("rand key: %v", err)
 	}
 
-	s := NewServer(Options{DB: db, Keys: staticKey(keyBytes)})
+	keys := staticKey(keyBytes)
+	s := NewServer(Options{DB: db, Keys: keys})
 	srv := httptest.NewServer(s.Handler())
 	t.Cleanup(srv.Close)
 
-	return &testServer{srv: srv, db: db}
+	return &testServer{srv: srv, db: db, keys: keys}
 }
 
 // do issues a request against the test server. bearer is auto-attached

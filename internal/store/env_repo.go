@@ -99,6 +99,42 @@ func (r *EnvRepo) ByName(ctx context.Context, projectID int64, name string) (Env
 	return e, nil
 }
 
+// List returns every environment across all projects, ordered by id. It backs
+// listings that must resolve many env_id -> name in one shot (e.g. the webhook
+// list), letting the caller build a single map instead of issuing a ByID per
+// row — which would be an N+1 across the list.
+func (r *EnvRepo) List(ctx context.Context) ([]Environment, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, project_id, name, inherits_from, created_at, updated_at
+		   FROM environments
+		  ORDER BY id`,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list envs: %w", err)
+	}
+	defer rows.Close()
+
+	var out []Environment
+	for rows.Next() {
+		var (
+			e                    Environment
+			inherits             sql.NullString
+			createdAt, updatedAt int64
+		)
+		if err := rows.Scan(&e.ID, &e.ProjectID, &e.Name, &inherits, &createdAt, &updatedAt); err != nil {
+			return nil, fmt.Errorf("scan env: %w", err)
+		}
+		e.InheritsFrom = inherits.String
+		e.CreatedAt = unixSeconds(createdAt)
+		e.UpdatedAt = unixSeconds(updatedAt)
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate envs: %w", err)
+	}
+	return out, nil
+}
+
 // ListByProject returns every environment in projectID, ordered by name.
 func (r *EnvRepo) ListByProject(ctx context.Context, projectID int64) ([]Environment, error) {
 	rows, err := r.db.QueryContext(ctx,

@@ -170,6 +170,33 @@ revoked" is now enforceable in-band, and token issuance is no longer flat:
 - **revoke는 소급 방지가 아니다.** 회수 이전에 이미 read된 값은 되돌릴 수
   없다. 유출 의심 시 회수와 별개로 값 자체를 로테이션해야 한다.
 
+## Webhooks (M4)
+
+웹훅은 시크릿 변경 시 등록된 URL로 서명된 이벤트를 POST한다. 자세한 사용법은
+[webhooks.md](webhooks.md).
+
+- **등록·삭제는 admin 전용이다.** 비-admin 토큰은 403. 유출된 CI 토큰이 웹훅을
+  심어 트래픽을 빼돌릴 수 없다.
+- **페이로드에 시크릿 평문이 없다.** 이벤트는 메타데이터(project/env/key/
+  version/action)만 담는다. `Payload` 구조체에 값 필드 자체가 없어 구조로
+  강제되며, 통합 테스트가 수신 페이로드에 canary 부재를 검증한다.
+- **서명 시크릿은 마스터키로 암호화 저장**한다(토큰처럼 hash 가 아님 — 배달
+  시점 HMAC 서명에 평문이 필요하므로 `crypto.Seal`). 목록 API/CLI/대시보드는
+  ciphertext 를 제외하고, 발급 plaintext 는 등록 시 1회만 노출된다.
+- **SSRF: 사설 IP 는 의도적으로 허용**한다(웹훅의 목적이 내부 서비스 호출,
+  Docker overlay 는 RFC1918). 대신 **link-local/클라우드 metadata
+  (169.254.0.0/16, `fe80::/10`, 특히 `169.254.169.254`)를 기본 차단**한다.
+  방어 계층: http/https 스킴 제한, 등록·배달 시 host resolve 후 metadata 거부,
+  리다이렉트 미추종, 배달 시 `DialContext` IP 재검증(DNS rebinding), 운영자
+  opt-in allow/deny CIDR(`COMAX_WEBHOOK_ALLOW`/`_DENY`).
+- **at-least-once 배달.** 배달은 중복될 수 있으므로 수신자는 멱등해야 한다
+  (`X-Comax-Delivery` id 를 멱등 키로). 배달 워커는 원자적 lease claim 으로
+  동시 워커의 중복 POST 를 막고, 크래시한 워커의 in_progress 행은 lease 만료
+  후 회수한다. outbox 행은 시크릿 변경 tx 커밋 후에만 배달 대상이 된다.
+- **서명 시크릿 회전은 delete+recreate** 워크어라운드다(v1). 위조 트리거의
+  blast radius 는 운영자 자신의 수신자에 한정되고, 수신자는 인증 CLI 로 값을
+  재-pull 하므로 유출 파급이 제한적이다. in-place 회전은 backlog 이연.
+
 ## Audit log retention
 
 Every state-changing operation writes a row to `audit_log` with the

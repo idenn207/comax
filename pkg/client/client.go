@@ -326,3 +326,94 @@ func (c *Client) RevokeToken(ctx context.Context, id int64) error {
 	return c.do(ctx, http.MethodDelete,
 		fmt.Sprintf("/api/v1/tokens/%d", id), nil, nil)
 }
+
+// Webhook is the listing shape from GET /api/v1/webhooks. The signing secret
+// is never present — it is shown once at creation. Env is nil for an all-envs
+// subscription.
+type Webhook struct {
+	ID        int64     `json:"id"`
+	Project   string    `json:"project"`
+	Env       *string   `json:"env,omitempty"`
+	URL       string    `json:"url"`
+	Events    []string  `json:"events"`
+	Enabled   bool      `json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// WebhookCreated is returned by CreateWebhook. SigningSecret is the plaintext
+// HMAC key, shown exactly once — the server persists only its ciphertext.
+type WebhookCreated struct {
+	ID            int64     `json:"id"`
+	Project       string    `json:"project"`
+	Env           *string   `json:"env,omitempty"`
+	URL           string    `json:"url"`
+	Events        []string  `json:"events"`
+	Enabled       bool      `json:"enabled"`
+	SigningSecret string    `json:"signing_secret"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+// Delivery is one row from GET /api/v1/webhooks/{id}/deliveries.
+type Delivery struct {
+	ID            int64      `json:"id"`
+	Event         string     `json:"event"`
+	Status        string     `json:"status"`
+	Attempts      int64      `json:"attempts"`
+	LastStatus    *int64     `json:"last_status,omitempty"`
+	LastError     string     `json:"last_error,omitempty"`
+	NextAttemptAt time.Time  `json:"next_attempt_at"`
+	CreatedAt     time.Time  `json:"created_at"`
+	DeliveredAt   *time.Time `json:"delivered_at,omitempty"`
+}
+
+// CreateWebhookInput is the request body for CreateWebhook. Env is optional
+// (empty = all environments in the project); Events empty = all event kinds.
+type CreateWebhookInput struct {
+	Project string   `json:"project"`
+	Env     string   `json:"env,omitempty"`
+	URL     string   `json:"url"`
+	Events  []string `json:"events,omitempty"`
+}
+
+// CreateWebhook registers a webhook and returns its signing secret (shown
+// once). Requires an admin bearer. A malformed or SSRF-blocked URL returns an
+// *APIError with Code "bad_request".
+func (c *Client) CreateWebhook(ctx context.Context, in CreateWebhookInput) (WebhookCreated, error) {
+	var out WebhookCreated
+	err := c.do(ctx, http.MethodPost, "/api/v1/webhooks", in, &out)
+	return out, err
+}
+
+// ListWebhooks returns every webhook (metadata only). Requires an admin bearer.
+func (c *Client) ListWebhooks(ctx context.Context) ([]Webhook, error) {
+	var out []Webhook
+	err := c.do(ctx, http.MethodGet, "/api/v1/webhooks", nil, &out)
+	return out, err
+}
+
+// DeleteWebhook removes a webhook by id. Returns ErrNotFound (via *APIError)
+// when the id is unknown. Requires an admin bearer.
+func (c *Client) DeleteWebhook(ctx context.Context, id int64) error {
+	return c.do(ctx, http.MethodDelete,
+		fmt.Sprintf("/api/v1/webhooks/%d", id), nil, nil)
+}
+
+// SetWebhookEnabled toggles a webhook's enabled flag (soft-disable). A disabled
+// webhook stops receiving new deliveries but keeps its registration and
+// history. Returns ErrNotFound (via *APIError) when the id is unknown. Requires
+// an admin bearer.
+func (c *Client) SetWebhookEnabled(ctx context.Context, id int64, enabled bool) error {
+	return c.do(ctx, http.MethodPatch,
+		fmt.Sprintf("/api/v1/webhooks/%d", id),
+		map[string]bool{"enabled": enabled}, nil)
+}
+
+// ListDeliveries returns the recent delivery attempts for a webhook. Requires
+// an admin bearer.
+func (c *Client) ListDeliveries(ctx context.Context, webhookID int64) ([]Delivery, error) {
+	var out []Delivery
+	err := c.do(ctx, http.MethodGet,
+		fmt.Sprintf("/api/v1/webhooks/%d/deliveries", webhookID), nil, &out)
+	return out, err
+}

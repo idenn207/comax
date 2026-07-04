@@ -8,6 +8,7 @@ import (
 
 	"github.com/idenn207/comax-secrets/internal/crypto"
 	"github.com/idenn207/comax-secrets/internal/secret"
+	"github.com/idenn207/comax-secrets/internal/webhook"
 )
 
 // Server holds the dependencies the HTTP handlers need. Construct via
@@ -32,11 +33,12 @@ import (
 //     pull in the //go:embed directive (which would force every build
 //     to populate dist/).
 type Server struct {
-	db       *sql.DB
-	keys     crypto.KeyProvider
-	resolver Resolver
-	logger   *slog.Logger
-	spaFS    fs.FS
+	db            *sql.DB
+	keys          crypto.KeyProvider
+	resolver      Resolver
+	logger        *slog.Logger
+	spaFS         fs.FS
+	webhookPolicy webhook.Policy
 }
 
 // Options configures NewServer. All fields are optional except DB and
@@ -50,6 +52,11 @@ type Options struct {
 	// dashboard.FS() from cmd/server when --dashboard-enabled is true and
 	// the binary was built with -tags embed_dashboard.
 	SPAFS fs.FS
+	// WebhookPolicy is the SSRF guard applied when a webhook is registered
+	// (ValidateURL at create time). The zero value blocks link-local /
+	// cloud-metadata addresses and allows everything else; cmd/server loads
+	// operator overrides from the environment.
+	WebhookPolicy webhook.Policy
 }
 
 // NewServer wires the dependencies. It does not start a network
@@ -68,10 +75,11 @@ func NewServer(opts Options) *Server {
 		opts.Resolver = secret.NewResolver(opts.DB, opts.Keys)
 	}
 	return &Server{
-		db:       opts.DB,
-		keys:     opts.Keys,
-		resolver: opts.Resolver,
-		logger:   opts.Logger,
-		spaFS:    opts.SPAFS,
+		db:            opts.DB,
+		keys:          opts.Keys,
+		resolver:      opts.Resolver,
+		logger:        opts.Logger,
+		spaFS:         opts.SPAFS,
+		webhookPolicy: opts.WebhookPolicy,
 	}
 }

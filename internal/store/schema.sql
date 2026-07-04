@@ -97,3 +97,54 @@ CREATE TABLE IF NOT EXISTS dashboard_sessions (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sessions_token ON dashboard_sessions (token_id);
+
+-- M4: webhook subscriptions. Each row is an operator-registered HTTP endpoint
+-- that receives a signed POST when a matching secret change commits. Unlike
+-- service_tokens (which persist only a hash), the HMAC signing secret is
+-- SEALED with the master key: the delivery worker must recover the plaintext
+-- to compute the signature, so we encrypt rather than hash and expose the
+-- plaintext to the operator exactly once at creation.
+--
+-- env_id is nullable: NULL means "every environment in the project". events is
+-- a comma-joined subset of the known event kinds (secret.upsert, secret.rollback,
+-- secret.delete). enabled=0 soft-disables a webhook without deleting its history.
+CREATE TABLE IF NOT EXISTS webhooks (
+    id                INTEGER PRIMARY KEY,
+    project_id        INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    env_id            INTEGER REFERENCES environments(id) ON DELETE CASCADE, -- NULL = all envs
+    url               TEXT    NOT NULL,
+    secret_ciphertext BLOB    NOT NULL,       -- crypto.Seal(HMAC signing key); never listed
+    events            TEXT    NOT NULL,       -- comma-joined event kinds
+    enabled           INTEGER NOT NULL DEFAULT 1, -- 0 = soft-disabled
+    created_at        INTEGER NOT NULL,
+    updated_at        INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_webhooks_project ON webhooks (project_id);
+
+-- M4: transactional outbox for webhook deliveries. A row is enqueued inside the
+-- SAME tx as the secret change (alongside audit_log), so only committed changes
+-- become deliverable — a rolled-back tx leaves no ghost delivery.
+--
+-- The worker claims due rows atomically: a candidate transitions pending ->
+-- in_progress with a claimed_at lease, guarded by a compare-and-swap so two
+-- workers never double-POST. A worker that crashes mid-delivery leaves an
+-- in_progress row whose claimed_at is old; ReclaimStale flips it back to
+-- pending. status is one of pending|in_progress|delivered|dead; a retry
+-- re-enters pending with next_attempt_at pushed into the future (backoff).
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+    id              INTEGER PRIMARY KEY,
+    webhook_id      INTEGER NOT NULL REFERENCES webhooks(id) ON DELETE CASCADE,
+    event           TEXT    NOT NULL,         -- the event that triggered this delivery
+    payload         TEXT    NOT NULL,         -- JSON metadata only; NEVER secret plaintext
+    status          TEXT    NOT NULL,         -- pending | in_progress | delivered | dead
+    attempts        INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at INTEGER NOT NULL,         -- unix seconds; due when <= now and status=pending
+    claimed_at      INTEGER,                  -- unix seconds lease; NULL unless in_progress
+    last_status     INTEGER,                  -- last HTTP status code; NULL until first attempt
+    last_error      TEXT,                     -- last transport/HTTP error; "" when none
+    created_at      INTEGER NOT NULL,
+    delivered_at    INTEGER                   -- set when status=delivered
+);
+
+CREATE INDEX IF NOT EXISTS idx_deliveries_due ON webhook_deliveries (status, next_attempt_at);
