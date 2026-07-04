@@ -5,7 +5,7 @@ Built to replace hand-synced `.env` files with one source of truth that ships
 encrypted secrets to dev workstations, CI runners, and production
 containers.
 
-> **Status**: Milestones 1 and 2 shipped end-to-end. M1 ships the
+> **Status**: Milestones 1 through 4 shipped end-to-end. M1 ships the
 > single-binary server + CLI; M2 ships the embedded operator dashboard
 > at `/` (project/env/secret CRUD, version diff, rollback, env-vs-env
 > diff, audit log, session controls). M2 closure plan D1 **deferred**
