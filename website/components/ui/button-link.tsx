@@ -2,17 +2,20 @@ import Link from 'next/link';
 import type { ComponentProps } from 'react';
 import { cn } from '@/lib/cn';
 
-type Variant = 'primary' | 'secondary';
+type Variant = 'primary' | 'secondary' | 'oncolor' | 'ghost';
 
 const base =
   'inline-flex items-center justify-center gap-2 rounded-md px-4 py-2.5 text-sm font-semibold transition-colors duration-fast focus-visible:outline-2';
 
 const variants: Record<Variant, string> = {
-  // Primary is monochrome graphite filled — hierarchy by contrast, not hue
-  // (mirrors the dashboard; PRODUCT.md "색은 의미에만").
-  primary: 'bg-accent text-accent-text hover:bg-accent-hover',
-  secondary:
-    'border border-border-strong text-text hover:bg-surface-hover',
+  // Primary is the Committed teal brand fill (redesign): the landing's one
+  // decisive color moment. Near-white brand-text on teal, contrast 5.15:1.
+  primary: 'bg-brand text-brand-text hover:bg-brand-hover',
+  secondary: 'border border-border-strong text-text hover:bg-surface-hover',
+  // Inside a filled teal band: inverted (near-white fill, teal-strong text).
+  oncolor: 'bg-brand-text text-brand-strong hover:opacity-90',
+  // Inside a filled teal band: outlined ghost.
+  ghost: 'border border-white/30 text-brand-text hover:bg-white/10',
 };
 
 type ButtonLinkProps = {

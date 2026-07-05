@@ -20,7 +20,7 @@ export function SiteHeader() {
                 href={item.href}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="rounded-md px-3 py-1.5 text-sm text-text-subtle transition-colors duration-fast hover:bg-surface-hover hover:text-text"
+                className="rounded-md px-3 py-1.5 text-sm text-text-subtle transition-colors duration-fast hover:bg-surface-hover hover:text-brand"
               >
                 {item.title}
               </a>
@@ -28,7 +28,7 @@ export function SiteHeader() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="rounded-md px-3 py-1.5 text-sm text-text-subtle transition-colors duration-fast hover:bg-surface-hover hover:text-text"
+                className="rounded-md px-3 py-1.5 text-sm text-text-subtle transition-colors duration-fast hover:bg-surface-hover hover:text-brand"
               >
                 {item.title}
               </Link>

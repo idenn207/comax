@@ -51,14 +51,14 @@ export function SiteFooter() {
                       href={link.href}
                       target="_blank"
                       rel="noreferrer noopener"
-                      className="text-sm text-text-subtle transition-colors hover:text-text"
+                      className="text-sm text-text-subtle transition-colors hover:text-brand"
                     >
                       {link.label}
                     </a>
                   ) : (
                     <Link
                       href={link.href}
-                      className="text-sm text-text-subtle transition-colors hover:text-text"
+                      className="text-sm text-text-subtle transition-colors hover:text-brand"
                     >
                       {link.label}
                     </Link>

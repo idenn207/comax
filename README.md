@@ -110,7 +110,8 @@ job-wide injection with `export-to: github-env`. See
 ├── deploy/
 │   ├── docker/        # Multi-stage Dockerfile (distroless final)
 │   └── compose/       # docker-compose.yml with bind-mounted data + keys
-├── docs/              # dev-internal docs; user-facing docs are canonical on the site
+├── docs/              # dev-internal docs; user-facing docs are canonical on the site (website/content/docs)
+├── dashboard/         # operator SPA — Vite/React, embedded into secret-server via //go:embed (M2)
 ├── sdk/               # @comax-secrets/sdk — Node/TS SDK (M5)
 ├── website/           # marketing + docs site — Next.js/Vercel (M6)
 ├── .github/workflows/ # CI: test, lint, cross-compile, action, sdk, website, release, secret-scan

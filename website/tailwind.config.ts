@@ -43,11 +43,14 @@ export default {
           soft: 'var(--color-accent-soft)',
           strong: 'var(--color-accent-strong)',
         },
-        // brand — the single website-only chromatic accent (D10).
+        // brand — the website-only Committed teal accent (redesign).
         brand: {
           DEFAULT: 'var(--color-brand)',
           hover: 'var(--color-brand-hover)',
+          active: 'var(--color-brand-active)',
           soft: 'var(--color-brand-soft)',
+          'soft-hover': 'var(--color-brand-soft-hover)',
+          strong: 'var(--color-brand-strong)',
           text: 'var(--color-brand-text)',
         },
         border: {
