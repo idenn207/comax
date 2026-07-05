@@ -135,6 +135,30 @@ func TestRender_RejectsNonIgnoredPath(t *testing.T) {
 	}
 }
 
+// TestRender_RejectsDirectoryOutPath guards the Windows edge where an --out
+// pointing at an existing (empty) dir would be deleted by writeRenderedSecret's
+// os.Remove before the rename. The command must refuse AND leave the dir intact.
+func TestRender_RejectsDirectoryOutPath(t *testing.T) {
+	credPath, cwd := loggedInWorktree(t)
+	gitInitStaging(t, cwd)
+	tmplPath := filepath.Join(cwd, "t.tmpl")
+	if err := os.WriteFile(tmplPath, []byte("plain no refs\n"), 0o644); err != nil {
+		t.Fatalf("write template: %v", err)
+	}
+	dirTarget := filepath.Join(cwd, "tmp-render", "adir")
+	if err := os.MkdirAll(dirTarget, 0o750); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	_, err := runCmd(t, credPath, "render",
+		"--template", tmplPath, "--out", "tmp-render/adir", "--env", "dev", "--quiet")
+	if err == nil || !strings.Contains(err.Error(), "directory") {
+		t.Fatalf("expected directory-refusal error, got %v", err)
+	}
+	if fi, statErr := os.Stat(dirTarget); statErr != nil || !fi.IsDir() {
+		t.Error("render removed/replaced the target directory despite refusal")
+	}
+}
+
 func TestRender_MissingKeyFailsClosed(t *testing.T) {
 	credPath, cwd := loggedInWorktree(t)
 	gitInitStaging(t, cwd)

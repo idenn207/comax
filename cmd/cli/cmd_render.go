@@ -228,8 +228,17 @@ func assertSafeOutPath(outPath string) error {
 	}
 	// Refuse to write through an existing symlink (re-checked just before
 	// the write in writeRenderedSecret to narrow the TOCTOU window).
-	if li, err := os.Lstat(abs); err == nil && li.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("--out %q is a symlink; refusing to write secrets through it", abs)
+	if li, err := os.Lstat(abs); err == nil {
+		if li.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("--out %q is a symlink; refusing to write secrets through it", abs)
+		}
+		// A directory target would, on Windows, be deleted by
+		// writeRenderedSecret's os.Remove before the rename (os.Remove drops an
+		// empty dir). Refuse here so the behavior is fail-closed and consistent
+		// with Unix, where renaming a file over a directory fails anyway.
+		if li.IsDir() {
+			return fmt.Errorf("--out %q is a directory; refusing to overwrite a directory with a secret file", abs)
+		}
 	}
 	if err := runGitQuiet(parent, "rev-parse", "--is-inside-work-tree"); err != nil {
 		return fmt.Errorf("--out %q must be inside a git worktree (render writes only to gitignored staging paths): %w", abs, err)
@@ -258,10 +267,17 @@ func runGitQuiet(dir string, args ...string) error {
 // a symlink at the target, then renames. A crash mid-write leaves any
 // previous file intact.
 func writeRenderedSecret(path, content string) error {
-	// Narrow the check→write TOCTOU window: re-verify the target is not a
-	// symlink immediately before writing.
-	if li, err := os.Lstat(path); err == nil && li.Mode()&os.ModeSymlink != 0 {
-		return fmt.Errorf("--out %q became a symlink; refusing to write secrets through it", path)
+	// Narrow the check→write TOCTOU window: re-verify the target is neither a
+	// symlink nor a directory immediately before writing.
+	if li, err := os.Lstat(path); err == nil {
+		if li.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("--out %q became a symlink; refusing to write secrets through it", path)
+		}
+		// Guard the os.Remove below: on Windows it would delete an empty dir to
+		// make room for the rename. Never remove a directory for a secret file.
+		if li.IsDir() {
+			return fmt.Errorf("--out %q is a directory; refusing to replace a directory with a secret file", path)
+		}
 	}
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, ".render.tmp.*")
