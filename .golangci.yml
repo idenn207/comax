@@ -22,7 +22,7 @@ linters:
     - revive
   exclusions:
     paths:
-      - web/dashboard/node_modules
+      - dashboard/node_modules
       - website/node_modules
   settings:
     errcheck:

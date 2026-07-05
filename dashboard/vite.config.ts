@@ -11,6 +11,7 @@ const __dirname = path.dirname(__filename);
 // Go embed dir (internal/server/dashboard/dist) so `go build -tags
 // embed_dashboard` picks the latest SPA up without a copy step. The
 // dev server proxies /api + /healthz to the Go process running on 8080.
+// outDir is one level up now that the SPA lives at ./dashboard (was ./web/dashboard).
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -19,7 +20,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: path.resolve(__dirname, '../../internal/server/dashboard/dist'),
+    outDir: path.resolve(__dirname, '../internal/server/dashboard/dist'),
     emptyOutDir: true,
     sourcemap: false,
     target: 'es2022',

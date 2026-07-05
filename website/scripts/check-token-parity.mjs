@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Codex F4 — cross-app token drift guard.
 //
-// The website mirrors web/dashboard neutral + semantic tokens by copy (no shared
+// The website mirrors dashboard neutral + semantic tokens by copy (no shared
 // package). This asserts that every --color-* token present in BOTH files has an
 // identical value in the light and dark blocks. The website-only --color-brand*
 // family (M6 D10) is the single allowed exception.
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 const websiteRoot = path.resolve(fileURLToPath(import.meta.url), '../..');
 const repoRoot = path.resolve(websiteRoot, '..');
 
-const dashboardTokens = path.join(repoRoot, 'web', 'dashboard', 'src', 'styles', 'tokens.css');
+const dashboardTokens = path.join(repoRoot, 'dashboard', 'src', 'styles', 'tokens.css');
 const websiteGlobals = path.join(websiteRoot, 'app', 'globals.css');
 
 const ALLOW_WEBSITE_ONLY = /^color-brand/;

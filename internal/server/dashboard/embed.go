@@ -2,7 +2,7 @@
 
 // Package dashboard exposes the embedded SPA filesystem.
 //
-// With `-tags embed_dashboard` the Vite build output (web/dashboard/dist,
+// With `-tags embed_dashboard` the Vite build output (dashboard/dist,
 // synced into ./dist by `make dashboard`) is compiled into the binary
 // via //go:embed. Without the tag, embed_dev.go is compiled instead and
 // FS returns nil so contributors can run `go test ./...` and `go build`

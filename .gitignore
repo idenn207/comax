@@ -62,7 +62,7 @@ cov_*
 .claude/tmp/
 .claude/settings.local.json
 .github/skills/
-web/dashboard/.claude/
+dashboard/.claude/
 
 # Go workspace files (kept out of version control)
 go.work
@@ -104,9 +104,9 @@ deploy/compose/keys/
 !/internal/server/dashboard/dist/.gitkeep
 
 # Frontend toolchain artefacts (npm/Vite/Playwright).
-/web/dashboard/node_modules/
-/web/dashboard/dist/
-/web/dashboard/.vite/
-/web/dashboard/playwright-report/
-/web/dashboard/test-results/
-/web/dashboard/coverage/
+/dashboard/node_modules/
+/dashboard/dist/
+/dashboard/.vite/
+/dashboard/playwright-report/
+/dashboard/test-results/
+/dashboard/coverage/
