@@ -8,7 +8,8 @@ const BOOT_LINE = /Comax Secrets: bootstrap admin token \(shown ONCE\):\s*\n\s*(
 
 export default async function globalSetup(): Promise<void> {
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const workspaceRoot = path.resolve(here, '..', '..', '..', '..');
+  // here = dashboard/tests/e2e → repo root is 3 levels up (e2e → tests → dashboard).
+  const workspaceRoot = path.resolve(here, '..', '..', '..');
   const binSuffix = process.platform === 'win32' ? '.exe' : '';
   const serverBin = path.join(workspaceRoot, 'bin', `secret-server${binSuffix}`);
   if (!fs.existsSync(serverBin)) {
