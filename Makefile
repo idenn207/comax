@@ -32,7 +32,7 @@ NPM           ?= npm
 PKG           := github.com/idenn207/comax-secrets
 BIN_DIR       := bin
 COVER_OUT     := coverage.out
-DASHBOARD_DIR := web/dashboard
+DASHBOARD_DIR := dashboard
 DASHBOARD_OUT := internal/server/dashboard/dist
 SDK_DIR       := sdk
 WEBSITE_DIR   := website
@@ -59,7 +59,7 @@ build-server-nodash:
 	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/secret        ./cmd/cli
 
 # Build the SPA. Vite is configured to write directly into the Go embed
-# dir (see web/dashboard/vite.config.ts) so no extra copy step is needed.
+# dir (see dashboard/vite.config.ts) so no extra copy step is needed.
 dashboard:
 	cd $(DASHBOARD_DIR) && $(NPM) ci --silent
 	cd $(DASHBOARD_DIR) && $(NPM) run build

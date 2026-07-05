@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && tsc -p tsconfig.app.json --noEmit",
-    "postbuild": "node -e \"require('node:fs').writeFileSync('../../internal/server/dashboard/dist/.gitkeep', '')\"",
+    "postbuild": "node -e \"require('node:fs').writeFileSync('../internal/server/dashboard/dist/.gitkeep', '')\"",
     "preview": "vite preview --port 4173",
     "typecheck": "tsc -p tsconfig.app.json --noEmit",
     "lint": "eslint . --max-warnings=0",

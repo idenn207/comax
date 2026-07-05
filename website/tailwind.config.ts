@@ -3,7 +3,7 @@ import typography from '@tailwindcss/typography';
 
 /*
  * Design tokens live in app/globals.css as CSS custom properties, mirrored
- * (name + value) from web/dashboard/src/styles/tokens.css so the marketing
+ * (name + value) from dashboard/src/styles/tokens.css so the marketing
  * site and the dashboard share one visual language. The `brand` family is the
  * ONE website-only addition (M6 D10): a single restrained chromatic accent for
  * CTA + hierarchy on the landing surface. All neutral/semantic tokens are kept
