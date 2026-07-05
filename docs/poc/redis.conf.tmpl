@@ -1,0 +1,10 @@
+# redis.conf — M7 PoC template, rendered per-env by `secret render`.
+# ONE template, many envs: ${{ self.KEY }} pulls KEY from the env being
+# rendered (`secret render --env local|dev|prod`), so there is no env
+# hardcoded here and no per-env template duplication.
+maxmemory ${{ self.REDIS_MAXMEM }}
+maxmemory-policy allkeys-lru
+requirepass ${{ self.REDIS_PASSWORD }}
+appendonly ${{ self.REDIS_AOF }}
+# Literal '$' survives verbatim — only ${{ }} is a reference:
+# save 900 1

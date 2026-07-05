@@ -24,13 +24,17 @@ package secret
 
 import "regexp"
 
-// referencePattern matches ${{ env.KEY }} with optional whitespace
+// ReferencePattern matches ${{ env.KEY }} with optional whitespace
 // inside the braces. The env and key names use the same charset as
 // server.validateName: [A-Za-z0-9_.+-]. The pattern is intentionally
 // strict — anything outside that charset is left as a literal so
 // operators can write {{ }} in places that aren't refs (e.g. inside a
 // JSON template) without surprise.
-var referencePattern = regexp.MustCompile(`\$\{\{\s*([A-Za-z0-9_.+-]+)\.([A-Za-z0-9_.+-]+)\s*\}\}`)
+//
+// Exported so the dependency-light client-side renderer (internal/tmpl)
+// can assert grammar parity with this server-side source of truth without
+// importing the resolver's sql/crypto/store deps into the CLI binary.
+var ReferencePattern = regexp.MustCompile(`\$\{\{\s*([A-Za-z0-9_.+-]+)\.([A-Za-z0-9_.+-]+)\s*\}\}`)
 
 // reference is one parsed reference site inside a plaintext.
 type reference struct {
@@ -45,7 +49,7 @@ type reference struct {
 // findReferences returns every ${{ env.KEY }} match in plaintext, in
 // the order they appear. The returned slice may be empty (no refs).
 func findReferences(plaintext string) []reference {
-	idxs := referencePattern.FindAllStringSubmatchIndex(plaintext, -1)
+	idxs := ReferencePattern.FindAllStringSubmatchIndex(plaintext, -1)
 	if len(idxs) == 0 {
 		return nil
 	}

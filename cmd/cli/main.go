@@ -58,6 +58,7 @@ func newRootCmd() *cobra.Command {
 		newDiffCmd(st),
 		newRunCmd(st),
 		newExportCmd(st),
+		newRenderCmd(st),
 		newTokenCmd(st),
 		newWebhookCmd(st),
 	)
