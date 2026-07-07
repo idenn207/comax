@@ -28,7 +28,14 @@ export async function renderDoc(source: string) {
           [rehypePrettyCode, prettyCodeOptions],
           [
             rehypeAutolinkHeadings,
-            { behavior: 'wrap', properties: { className: ['heading-anchor'] } },
+            {
+              // Modern docs pattern: headings stay plain text; a small "#"
+              // permalink is appended and revealed on hover (styled in
+              // globals.css), instead of wrapping the whole heading in a link.
+              behavior: 'append',
+              properties: { className: ['heading-anchor'], ariaHidden: 'true', tabIndex: -1 },
+              content: { type: 'text', value: '#' },
+            },
           ],
         ],
       },

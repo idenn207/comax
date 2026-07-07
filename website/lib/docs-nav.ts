@@ -22,9 +22,7 @@ export const docsNav: DocNavGroup[] = [
   {
     group: '시작하기',
     items: [
-      { slug: '', title: '개요' },
-      { slug: 'quickstart', title: 'Quickstart' },
-      { slug: 'install', title: '설치' },
+      { slug: '', title: 'Quickstart' },
       { slug: 'self-host', title: 'Self-host 배포' },
     ],
   },

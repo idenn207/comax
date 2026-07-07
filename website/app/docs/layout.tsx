@@ -1,11 +1,13 @@
 import { DocsSidebar } from '@/components/docs/sidebar';
 import { DocSearch } from '@/components/docs/search';
+import { DocsEnhance } from '@/components/docs/enhance';
 import { buildSearchIndex } from '@/lib/docs';
 
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   const searchIndex = buildSearchIndex();
   return (
     <div className="mx-auto max-w-content px-4 sm:px-6">
+      <DocsEnhance />
       <div className="lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-10">
         <aside className="hidden lg:block">
           <div className="sticky top-[var(--header-height)] max-h-[calc(100dvh-var(--header-height))] overflow-y-auto py-8 pr-2">

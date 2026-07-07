@@ -39,7 +39,7 @@ export function Toc({ items }: { items: TocItem[] }) {
               className={cn(
                 '-ml-px block border-l py-1 pl-3 text-sm transition-colors duration-fast',
                 activeId === item.id
-                  ? 'border-brand text-text'
+                  ? 'border-text font-medium text-text'
                   : 'border-transparent text-text-faint hover:text-text-subtle',
               )}
             >

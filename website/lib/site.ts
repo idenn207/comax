@@ -46,7 +46,7 @@ export type NavItem = {
 
 export const mainNav: NavItem[] = [
   { title: '문서', href: '/docs' },
-  { title: 'Quickstart', href: '/docs/quickstart' },
+  { title: 'Quickstart', href: '/docs' },
   { title: 'CLI', href: '/docs/cli' },
   { title: 'SDK', href: '/docs/sdk' },
   { title: 'GitHub', href: siteConfig.repo, external: true },

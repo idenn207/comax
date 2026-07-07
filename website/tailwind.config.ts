@@ -4,12 +4,10 @@ import typography from '@tailwindcss/typography';
 /*
  * Design tokens live in app/globals.css as CSS custom properties, mirrored
  * (name + value) from dashboard/src/styles/tokens.css so the marketing
- * site and the dashboard share one visual language. The `brand` family is the
- * ONE website-only addition (M6 D10): a single restrained chromatic accent for
- * CTA + hierarchy on the landing surface. All neutral/semantic tokens are kept
- * identical — check-token-parity.mjs enforces that (Codex F4).
- *
- * Rule: accent (brand) is used ≤1 per viewport (impeccable Output Constraint #2).
+ * site and the dashboard share one visual language. The `brand` family is an
+ * alias of the shared blue 250 (= --color-info): the site's single chromatic
+ * accent for links + emphasis, matching the dashboard. All neutral/semantic
+ * tokens are kept identical — check-token-parity.mjs enforces that (Codex F4).
  */
 export default {
   darkMode: ['selector', '[data-theme="dark"]'],
@@ -43,7 +41,7 @@ export default {
           soft: 'var(--color-accent-soft)',
           strong: 'var(--color-accent-strong)',
         },
-        // brand — the website-only Committed teal accent (redesign).
+        // brand — alias of the shared blue 250 (= info); the single accent.
         brand: {
           DEFAULT: 'var(--color-brand)',
           hover: 'var(--color-brand-hover)',
@@ -57,14 +55,26 @@ export default {
           DEFAULT: 'var(--color-border)',
           strong: 'var(--color-border-strong)',
         },
-        success: { DEFAULT: 'var(--color-success)', soft: 'var(--color-success-soft)' },
+        success: {
+          DEFAULT: 'var(--color-success)',
+          soft: 'var(--color-success-soft)',
+          strong: 'var(--color-success-strong)',
+        },
         danger: {
           DEFAULT: 'var(--color-danger)',
           soft: 'var(--color-danger-soft)',
           strong: 'var(--color-danger-strong)',
         },
-        warning: { DEFAULT: 'var(--color-warning)', soft: 'var(--color-warning-soft)' },
-        info: { DEFAULT: 'var(--color-info)', soft: 'var(--color-info-soft)' },
+        warning: {
+          DEFAULT: 'var(--color-warning)',
+          soft: 'var(--color-warning-soft)',
+          strong: 'var(--color-warning-strong)',
+        },
+        info: {
+          DEFAULT: 'var(--color-info)',
+          soft: 'var(--color-info-soft)',
+          strong: 'var(--color-info-strong)',
+        },
         code: { DEFAULT: 'var(--color-code-bg)', text: 'var(--color-code-text)' },
         focus: 'var(--color-focus-ring)',
       },

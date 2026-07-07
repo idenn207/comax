@@ -53,7 +53,7 @@ export function extractToc(source: string): TocItem[] {
   return toc;
 }
 
-export type DocFrontmatter = { title: string; description: string };
+export type DocFrontmatter = { title: string; description: string; eyebrow?: string };
 
 /** Minimal frontmatter reader for the search index (no MDX compile). */
 export function readDocFrontmatter(slug: string): DocFrontmatter {
