@@ -24,6 +24,7 @@ export const docsNav: DocNavGroup[] = [
     items: [
       { slug: '', title: '개요' },
       { slug: 'quickstart', title: 'Quickstart' },
+      { slug: 'install', title: '설치' },
       { slug: 'self-host', title: 'Self-host 배포' },
     ],
   },

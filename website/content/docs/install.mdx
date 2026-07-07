@@ -1,0 +1,90 @@
+---
+title: 설치
+description: 사전 빌드 바이너리, go install, Docker, GitHub Actions 자동 다운로드로 secret CLI/서버를 설치합니다.
+---
+
+## 설치
+
+`secret` CLI와 `secret-server`는 아래 방법 중 무엇으로 받아도 동일합니다. 상황에
+맞는 하나를 고르세요.
+
+| 방법 | 적합한 경우 |
+|---|---|
+| **사전 빌드 바이너리** | 가장 빠름. NAS·서버·로컬. 검증(체크섬+provenance) 권장 |
+| **`go install`** | Go 1.25+ 개발 환경 |
+| **Docker** | 서버를 컨테이너로 운영 |
+| **GitHub Actions** | 워크플로에서 `cli-version`으로 자동 다운로드·검증 |
+
+## 사전 빌드 바이너리
+
+[릴리스 페이지](https://github.com/idenn207/comax-secrets/releases)에서 OS/arch에
+맞는 자산을 받습니다. 자산 이름은 `secret-<os>-<arch>` 형식입니다
+(`linux|darwin` × `amd64|arm64`, `linux/armv7`, `windows/amd64.exe`).
+
+```bash
+VERSION=v1.0.0
+BASE="https://github.com/idenn207/comax-secrets/releases/download/${VERSION}"
+
+# 예: linux amd64 — os/arch만 바꾸면 됩니다
+curl -fsSL -o secret "${BASE}/secret-linux-amd64"
+curl -fsSL -O "${BASE}/SHA256SUMS"
+sha256sum -c --ignore-missing SHA256SUMS   # 체크섬 검증 (실패 시 신뢰 금지)
+chmod +x secret && ./secret --version
+```
+
+### provenance 검증 (권장)
+
+릴리스 바이너리에는 GitHub build-provenance attestation이 붙습니다. 이 바이너리가
+정말 이 저장소의 릴리스 워크플로에서 빌드됐는지 확인합니다:
+
+```bash
+gh attestation verify secret --repo idenn207/comax-secrets
+```
+
+시크릿을 다루는 도구인 만큼, 자동화 환경에서는 체크섬과 attestation을 **둘 다**
+통과할 때만 실행하세요. (GitHub Actions에서는 아래 자동 다운로드가 이를 강제합니다.)
+
+## go install
+
+```bash
+go install github.com/idenn207/comax-secrets/cmd/cli@latest   # secret 설치
+go install github.com/idenn207/comax-secrets/cmd/server@latest # 서버가 필요하면
+```
+
+특정 버전은 `@v1.0.0`처럼 태그를 붙입니다. 순수 Go(`CGO_ENABLED=0`)라 별도
+컴파일러 없이 설치됩니다.
+
+## Docker
+
+서버는 컨테이너로 운영하는 것이 가장 간단합니다. compose 부팅은
+[Quickstart](/docs/quickstart)와 [Self-host 배포](/docs/self-host)를 참고하세요.
+
+## GitHub Actions 자동 다운로드
+
+v1부터 action이 CLI를 직접 내려받아 **체크섬 + provenance attestation**을 검증한
+뒤 실행합니다. `cli-version`에 정확한 릴리스 태그를 지정하기만 하면 됩니다.
+
+```yaml
+- uses: idenn207/comax-secrets@v1
+  with:
+    server: https://secrets.example.com
+    token: ${{ secrets.COMAX_TOKEN }}
+    project: my-app
+    env: prod
+    cli-version: v1.0.0      # secret-<os>-<arch> 다운로드 + 검증
+    run: npm run deploy
+```
+
+- `cli-version`은 `v1`처럼 떠 있는 별칭이 아니라 **정확한 릴리스 태그**여야 합니다
+  (재현성과 provenance 바인딩 때문). `v1.0.0`, `v1.0.0-rc.1` 형식.
+- `gh attestation verify`가 필요하므로 **GitHub-hosted 러너**에서 동작합니다.
+  self-hosted 러너에서는 미리 받은 바이너리를 `cli-path`로 넘기세요.
+- 검증 중 하나라도 실패하면 action은 **즉시 실패**합니다(미검증 바이너리 실행 거부).
+
+자세한 사용법은 [GitHub Actions 통합](/docs/github-actions)을 참고하세요.
+
+## 고보안: 불변 핀
+
+`cli-version: v1.0.0`은 편의를 위한 것입니다. 릴리스 자산이 재업로드될 수 있는
+환경까지 방어하려면 릴리스 페이지에서 자산의 SHA-256을 복사해 별도로 대조하거나,
+`cli-path`로 미리 검증한 바이너리 경로를 고정하세요.

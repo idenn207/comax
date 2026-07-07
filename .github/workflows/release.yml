@@ -1,0 +1,127 @@
+name: release
+
+# M8 release automation. On an EXACT semver tag (vN.N.N or vN.N.N-rc.N) this
+# cross-compiles the CLI via the shared `make xbuild-release` target (no ldflags
+# drift vs CI — security review S8), issues a build-provenance attestation per
+# asset (implement-review CF1/plan F1), boots the packaged server against the
+# freshly built CLI (minimal RC operability gate — plan F4), and publishes a
+# GitHub Release with the binaries + SHA256SUMS.
+#
+# The tag filter is 'v*.*.*' so a floating major alias like 'v1' (no dots) can
+# NEVER trigger a build here; 'v1' is moved only by promote-v1.yml under
+# environment approval, and a repo tag ruleset should further protect it
+# (implement-review CF1 / security S5). A defensive guard below also hard-fails
+# a bare-major ref.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+env:
+  GO_VERSION: "1.25"
+
+jobs:
+  # Minimal release-candidate operability gate (plan F4): prove the packaged
+  # server boots and the just-built CLI can talk to it before we publish any
+  # artifact. Gates the release job so broken binaries/version-skew never get
+  # permanently associated with a tag.
+  smoke:
+    name: rc boot smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+      - name: build server + CLI
+        run: |
+          set -euo pipefail
+          mkdir -p bin
+          CGO_ENABLED=0 go build -trimpath -o bin/secret-server ./cmd/server
+          CGO_ENABLED=0 go build -trimpath -o bin/secret        ./cmd/cli
+      - name: boot server + capture bootstrap token
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/smoke"
+          export COMAX_LISTEN=":8080"
+          export COMAX_DB_PATH="${RUNNER_TEMP}/smoke/secrets.db"
+          export COMAX_MASTER_KEY_FILE="${RUNNER_TEMP}/smoke/master.key"
+          nohup "${GITHUB_WORKSPACE}/bin/secret-server" > "${RUNNER_TEMP}/server.log" 2>&1 &
+          echo "SERVER_PID=$!" >> "$GITHUB_ENV"
+          disown || true
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8080/healthz >/dev/null 2>&1 && break || sleep 1
+          done
+          curl -fsS http://localhost:8080/healthz >/dev/null \
+            || { echo "server not healthy"; cat "${RUNNER_TEMP}/server.log"; exit 1; }
+          TOKEN=$(grep -A1 'shown ONCE' "${RUNNER_TEMP}/server.log" | tail -1 | tr -d '[:space:]')
+          [ -n "$TOKEN" ] || { echo "no bootstrap token"; cat "${RUNNER_TEMP}/server.log"; exit 1; }
+          echo "::add-mask::${TOKEN}"
+          echo "ADMIN_TOKEN=${TOKEN}" >> "$GITHUB_ENV"
+      - name: released CLI path round-trips against the server
+        run: |
+          set -euo pipefail
+          CREDS="${RUNNER_TEMP}/creds.json"
+          SECRET="${GITHUB_WORKSPACE}/bin/secret"
+          "$SECRET" login --credentials "$CREDS" --server http://localhost:8080 --token "$ADMIN_TOKEN"
+          "$SECRET" init  --credentials "$CREDS" --project smoke --envs ci --default-env ci
+          echo "::add-mask::rc-canary"
+          "$SECRET" set   --credentials "$CREDS" --env ci "K=rc-canary" --quiet
+          "$SECRET" run   --credentials "$CREDS" --project smoke --env ci --quiet \
+            -- bash -c '[ "$K" = "rc-canary" ] && echo OK || exit 1'
+          "$SECRET" --version
+      - name: stop server
+        if: always()
+        run: kill "${SERVER_PID}" 2>/dev/null || true
+
+  release:
+    name: release ${{ github.ref_name }}
+    needs: [smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release + upload assets
+      id-token: write # OIDC for provenance attestation
+      attestations: write # actions/attest-build-provenance
+    steps:
+      - uses: actions/checkout@v4
+
+      # Defensive: never build/publish a floating major alias here (CF1/S5).
+      - name: reject bare-major tag
+        run: |
+          set -euo pipefail
+          if printf '%s' "${GITHUB_REF:-}" | grep -qE '^refs/tags/v[0-9]+$'; then
+            echo "::error::release blocked — '${GITHUB_REF}' is a floating major alias. release.yml builds only exact tags (vN.N.N[-rc.N]); 'v1' is moved by promote-v1.yml under approval."
+            exit 1
+          fi
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      # Single source of truth for the published binaries + checksums.
+      - name: cross-compile CLI + SHA256SUMS
+        run: make xbuild-release REL_VERSION="${GITHUB_REF_NAME}"
+
+      # Provenance attestation over every built binary. The action's download
+      # fallback verifies this with `gh attestation verify --signer-workflow`.
+      - name: attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "dist/secret-*"
+
+      - name: create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          prerelease=""
+          case "${GITHUB_REF_NAME}" in *-rc.*) prerelease="--prerelease" ;; esac
+          gh release create "${GITHUB_REF_NAME}" \
+            dist/secret-* dist/SHA256SUMS \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes ${prerelease}

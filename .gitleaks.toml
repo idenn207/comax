@@ -1,0 +1,35 @@
+# gitleaks config for comax-secrets (M8 / security review S9).
+# Extends the built-in ruleset and allowlists this repo's known non-secrets so
+# a real leak is never hidden behind noise. Keep exclusions narrow and
+# documented — every entry states WHY it is not a secret.
+title = "comax-secrets gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Repo-specific false positives (documented, non-secret)"
+
+paths = [
+  # Test fixtures / golden vectors: deliberately fake signatures + sample
+  # secret values used to assert crypto/webhook behavior — never real.
+  '''.*_test\.go''',
+  '''sdk/.*\.test\.ts''',
+  '''sdk/test/.*''',
+  # Docs and marketing copy use illustrative tokens/URLs, not live secrets.
+  '''docs/.*''',
+  '''website/content/.*''',
+  # Vendored JS licenses / lockfiles under website deps.
+  '''website/node_modules/.*''',
+]
+
+regexes = [
+  # Webhook signature scheme prefix is a public constant ("sha256=" + hex),
+  # not a credential (see sdk/src/webhook.ts).
+  '''sha256=[0-9a-f]{64}''',
+  # Fixed canary used by action-smoke.yml to prove no-plaintext-leak.
+  '''canary-smoke-value-do-not-print''',
+  # Example/placeholder tokens in docs and templates.
+  '''COMAX_TOKEN''',
+  '''<token>''',
+]

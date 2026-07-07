@@ -1,0 +1,55 @@
+name: Bug report
+description: Something isn't working as documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Do not report security vulnerabilities here** —
+        follow [SECURITY.md](../blob/master/SECURITY.md) instead.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what actually happened?
+      placeholder: Steps to reproduce, expected vs actual.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `secret --version` (or the server image tag / commit).
+      placeholder: v1.0.0
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - server
+        - CLI (secret)
+        - dashboard
+        - GitHub Action
+        - SDK (@comax-secrets/sdk)
+        - docs / website
+        - other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS / arch / how you run it (Docker, NAS model, GitHub runner, …).
+      placeholder: linux/arm64, Synology NAS, docker compose
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste logs or output. **Redact any secret values first.**
+      render: shell
+    validations:
+      required: false

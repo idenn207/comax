@@ -1,0 +1,74 @@
+name: promote-v1
+
+# Move the floating `v1` major-tag alias to a published exact release, under
+# manual approval. This is deliberately SEPARATE from release.yml (implement
+# review CF1 / security S5): release.yml only ever builds exact tags, so a
+# `v1` retarget — which silently changes what every `uses: idenn207/comax-secrets@v1`
+# consumer executes — cannot happen automatically. It requires:
+#   1. a workflow_dispatch by a maintainer,
+#   2. approval on the protected `release-approval` environment (configure
+#      required reviewers in repo Settings → Environments), and
+#   3. a source tag that is an exact, already-published release.
+#
+# BELT-AND-SUSPENDERS: also protect the `v1` tag with a repo tag ruleset
+# (Settings → Rules) so a direct `git push -f origin v1` is rejected outside
+# this workflow. The workflow token cannot bypass a ruleset that restricts tag
+# updates to the environment's approved actors.
+on:
+  workflow_dispatch:
+    inputs:
+      source_tag:
+        description: "Exact published release tag to point v1 at (e.g. v1.2.3). No -rc."
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    name: promote v1 -> ${{ inputs.source_tag }}
+    runs-on: ubuntu-latest
+    environment: release-approval # requires reviewer approval (configured in repo settings)
+    permissions:
+      contents: write # push the moved tag
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: validate source tag is an exact published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_TAG: ${{ inputs.source_tag }}
+        run: |
+          set -euo pipefail
+          # Exact semver only — no rc, no floating alias.
+          if ! printf '%s' "${SOURCE_TAG}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::source_tag must be an exact release like v1.2.3 (no -rc, no alias); got '${SOURCE_TAG}'."
+            exit 1
+          fi
+          # Only a v1.x.x line may back the v1 alias.
+          case "${SOURCE_TAG}" in
+            v1.*) : ;;
+            *) echo "::error::v1 alias may only point at a v1.x.x release; got '${SOURCE_TAG}'."; exit 1 ;;
+          esac
+          # The tag must exist AND have a published (non-draft) GitHub Release.
+          git rev-parse --verify "refs/tags/${SOURCE_TAG}" >/dev/null 2>&1 \
+            || { echo "::error::tag ${SOURCE_TAG} does not exist."; exit 1; }
+          gh release view "${SOURCE_TAG}" --json isDraft --jq '.isDraft' | grep -qx false \
+            || { echo "::error::${SOURCE_TAG} has no published (non-draft) release."; exit 1; }
+
+      - name: move v1 to source tag
+        env:
+          SOURCE_TAG: ${{ inputs.source_tag }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f v1 "${SOURCE_TAG}"
+          git push origin v1 --force
+          echo "v1 now points at ${SOURCE_TAG}"
+
+      # ROLLBACK (manual): to yank a bad v1 move, an approver re-runs this
+      # workflow with the previous good source_tag, or deletes the alias:
+      #   git push origin :refs/tags/v1
