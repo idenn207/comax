@@ -56,10 +56,15 @@ jobs:
           for i in $(seq 1 30); do
             curl -fsS http://localhost:8080/healthz >/dev/null 2>&1 && break || sleep 1
           done
+          # Redact the bootstrap-token line ("shown ONCE" banner + the next
+          # line) from any failure-path log dump: the token is printed to
+          # stdout before we capture + ::add-mask:: it, so a raw `cat` would
+          # leak it unmasked into the workflow log.
+          dump_redacted() { sed '/shown ONCE/,+1d' "${RUNNER_TEMP}/server.log"; }
           curl -fsS http://localhost:8080/healthz >/dev/null \
-            || { echo "server not healthy"; cat "${RUNNER_TEMP}/server.log"; exit 1; }
+            || { echo "server not healthy"; dump_redacted; exit 1; }
           TOKEN=$(grep -A1 'shown ONCE' "${RUNNER_TEMP}/server.log" | tail -1 | tr -d '[:space:]')
-          [ -n "$TOKEN" ] || { echo "no bootstrap token"; cat "${RUNNER_TEMP}/server.log"; exit 1; }
+          [ -n "$TOKEN" ] || { echo "no bootstrap token"; dump_redacted; exit 1; }
           echo "::add-mask::${TOKEN}"
           echo "ADMIN_TOKEN=${TOKEN}" >> "$GITHUB_ENV"
       - name: released CLI path round-trips against the server
