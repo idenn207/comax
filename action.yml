@@ -29,7 +29,7 @@ inputs:
       mode). Required unless export-to is set. The secrets are visible only
       to this command's child process — not to the rest of the job. SECURITY:
       this string is executed via `bash -c`; only pass code you control, and
-      never interpolate untrusted data (e.g. ${{ github.event.* }}) into it.
+      never interpolate untrusted data (e.g. github.event.* values) into it.
     required: false
     default: ""
   export-to:
