@@ -6,6 +6,10 @@ description: >-
   vars in its own environment.
 author: "idenn207"
 
+branding:
+  icon: "lock"
+  color: "blue"
+
 inputs:
   server:
     description: "Comax Secrets server base URL (e.g. https://secrets.example.com)."
@@ -23,7 +27,9 @@ inputs:
     description: >-
       Shell command to run with secrets injected as process env (default
       mode). Required unless export-to is set. The secrets are visible only
-      to this command's child process — not to the rest of the job.
+      to this command's child process — not to the rest of the job. SECURITY:
+      this string is executed via `bash -c`; only pass code you control, and
+      never interpolate untrusted data (e.g. github.event.* values) into it.
     required: false
     default: ""
   export-to:
@@ -36,17 +42,120 @@ inputs:
     default: ""
   cli-path:
     description: >-
-      Path to a prebuilt `secret` CLI binary. REQUIRED in M3. The
-      release-download fallback (driven by cli-version) lands in M8.
-    required: true
+      Path to a prebuilt `secret` CLI binary. Optional since v1: when omitted,
+      the CLI is downloaded from the GitHub Release named by 'cli-version' and
+      verified (SHA256SUMS + build-provenance attestation). Provide this on
+      self-hosted runners where `gh attestation verify` is unavailable.
+    required: false
+    default: ""
   cli-version:
-    description: "Reserved for M8: version to download when cli-path is omitted. Unused in M3."
+    description: >-
+      Exact release tag to download the CLI from when 'cli-path' is omitted
+      (e.g. v1.0.0). Must be a full semver tag — a floating alias like 'v1' is
+      rejected so the downloaded binary is reproducible and its provenance is
+      bound to a specific tag.
     required: false
     default: ""
 
 runs:
   using: "composite"
   steps:
+    # ----------------------------------------------------------------------
+    # 0. Resolve the CLI (v1). If cli-path is given, validate + use it. Else
+    #    download secret-<os>-<arch> from the cli-version Release and verify
+    #    BOTH the checksum (SHA256SUMS) AND build-provenance attestation
+    #    (gh attestation verify, bound to our release workflow). Any failure
+    #    hard-fails — a secrets tool must never run an unverified binary.
+    #    The resolved absolute path is shared via $GITHUB_ENV as COMAX_CLI_PATH.
+    # ----------------------------------------------------------------------
+    - name: "Comax Secrets: resolve CLI"
+      shell: bash
+      env:
+        COMAX_CLI_PATH_IN: ${{ inputs.cli-path }}
+        COMAX_CLI_VERSION: ${{ inputs.cli-version }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        if [ -n "${COMAX_CLI_PATH_IN}" ]; then
+          if [ ! -x "${COMAX_CLI_PATH_IN}" ]; then
+            echo "::error::comax-secrets: 'cli-path' is set but not an executable file (got: '${COMAX_CLI_PATH_IN}')." >&2
+            exit 1
+          fi
+          echo "COMAX_CLI_PATH=${COMAX_CLI_PATH_IN}" >> "${GITHUB_ENV}"
+          echo "comax-secrets: using provided CLI at ${COMAX_CLI_PATH_IN}"
+          exit 0
+        fi
+
+        # --- download path ---
+        if [ -z "${COMAX_CLI_VERSION}" ]; then
+          echo "::error::comax-secrets: provide 'cli-path', or 'cli-version' to download the CLI from a release." >&2
+          exit 1
+        fi
+        # Reject floating/aliased tags: provenance + reproducibility require an
+        # exact release tag (S6). Accepts vN.N.N and vN.N.N-rc.N only.
+        if ! printf '%s' "${COMAX_CLI_VERSION}" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$'; then
+          echo "::error::comax-secrets: 'cli-version' must be an exact release tag like v1.0.0 (or v1.0.0-rc.1), not a floating alias (got: '${COMAX_CLI_VERSION}')." >&2
+          exit 1
+        fi
+
+        # Safe os/arch → asset mapping (S4). Do not trust raw runner strings.
+        case "${RUNNER_OS}" in
+          Linux)   OS=linux ;;
+          macOS)   OS=darwin ;;
+          Windows) OS=windows ;;
+          *) echo "::error::comax-secrets: unsupported RUNNER_OS='${RUNNER_OS}'. Provide 'cli-path'." >&2; exit 1 ;;
+        esac
+        case "${RUNNER_ARCH}" in
+          X64)   ARCH=amd64 ;;
+          ARM64) ARCH=arm64 ;;
+          *) echo "::error::comax-secrets: unsupported RUNNER_ARCH='${RUNNER_ARCH}' for auto-download. Provide 'cli-path'." >&2; exit 1 ;;
+        esac
+        EXT=""; [ "${OS}" = "windows" ] && EXT=".exe"
+        ASSET="secret-${OS}-${ARCH}${EXT}"
+        echo "comax-secrets: resolving asset ${ASSET} from ${COMAX_CLI_VERSION}"
+
+        # Download into a private per-run tempdir (S7 — avoid a shared,
+        # predictable path between verify and exec).
+        TMPD="$(mktemp -d "${RUNNER_TEMP}/comax-cli.XXXXXX")"
+        BASE_URL="https://github.com/idenn207/comax-secrets/releases/download/${COMAX_CLI_VERSION}"
+        curl -fsSL "${BASE_URL}/${ASSET}"      -o "${TMPD}/${ASSET}" \
+          || { echo "::error::comax-secrets: asset not found: ${ASSET} @ ${COMAX_CLI_VERSION}. Check the release has this os/arch build." >&2; exit 1; }
+        curl -fsSL "${BASE_URL}/SHA256SUMS"    -o "${TMPD}/SHA256SUMS" \
+          || { echo "::error::comax-secrets: SHA256SUMS not found @ ${COMAX_CLI_VERSION}." >&2; exit 1; }
+
+        # 1) checksum (hard-fail). Compare the expected hash directly rather
+        #    than piping to `sha256sum -c`, so the check is robust to text
+        #    ("hash  file") vs binary ("hash *file") manifest formats across
+        #    platforms — the leading '*' on the filename field is stripped.
+        EXPECTED="$(awk -v a="${ASSET}" '{ f=$2; sub(/^\*/,"",f); if (f==a) print $1 }' "${TMPD}/SHA256SUMS")"
+        ACTUAL="$(sha256sum "${TMPD}/${ASSET}" | awk '{print $1}')"
+        if [ -z "${EXPECTED}" ]; then
+          echo "::error::comax-secrets: ${ASSET} not listed in SHA256SUMS for ${COMAX_CLI_VERSION}." >&2
+          exit 1
+        fi
+        if [ "${EXPECTED}" != "${ACTUAL}" ]; then
+          echo "::error::comax-secrets: checksum verification FAILED for ${ASSET}." >&2
+          exit 1
+        fi
+
+        # 2) build-provenance attestation (hard-fail). Requires gh on the
+        #    runner — GitHub-hosted has it; self-hosted must use cli-path (S3).
+        if ! command -v gh >/dev/null 2>&1; then
+          echo "::error::comax-secrets: 'gh' CLI not found — attestation verification requires a GitHub-hosted runner (or gh installed). On self-hosted runners, provide a prebuilt binary via 'cli-path'." >&2
+          exit 1
+        fi
+        # Bind the attestation to OUR release workflow so a valid attestation
+        # over a different/older asset re-uploaded to a mutable release cannot
+        # pass (implement-review CF2). --repo scopes to this repository.
+        gh attestation verify "${TMPD}/${ASSET}" \
+          --repo idenn207/comax-secrets \
+          --signer-workflow idenn207/comax-secrets/.github/workflows/release.yml \
+          || { echo "::error::comax-secrets: build-provenance attestation verification FAILED for ${ASSET}. Refusing to run an unattested binary." >&2; exit 1; }
+
+        chmod +x "${TMPD}/${ASSET}"
+        echo "COMAX_CLI_PATH=${TMPD}/${ASSET}" >> "${GITHUB_ENV}"
+        echo "comax-secrets: verified (checksum + attestation) and staged ${ASSET}"
+
     # ----------------------------------------------------------------------
     # 1. Acquire credentials into a ONE-SHOT file under $RUNNER_TEMP (R2-2).
     #    The default ~/.config/comax path is never written; the cleanup step
@@ -59,13 +168,8 @@ runs:
       env:
         COMAX_SERVER: ${{ inputs.server }}
         COMAX_TOKEN: ${{ inputs.token }}
-        COMAX_CLI_PATH: ${{ inputs.cli-path }}
       run: |
         set -euo pipefail
-        if [ -z "${COMAX_CLI_PATH}" ] || [ ! -x "${COMAX_CLI_PATH}" ]; then
-          echo "::error::comax-secrets: 'cli-path' is required in M3 and must point to an executable secret CLI (got: '${COMAX_CLI_PATH}'). The release-download fallback lands in M8." >&2
-          exit 1
-        fi
         CREDS="${RUNNER_TEMP}/comax-creds.json"
         # COMAX_TOKEN is exported to this step's env (above); the CLI reads
         # the token from $COMAX_TOKEN so the plaintext never enters argv and
@@ -83,7 +187,6 @@ runs:
     - name: "Comax Secrets: inject"
       shell: bash
       env:
-        COMAX_CLI_PATH: ${{ inputs.cli-path }}
         COMAX_PROJECT: ${{ inputs.project }}
         COMAX_ENV: ${{ inputs.env }}
         COMAX_RUN: ${{ inputs.run }}

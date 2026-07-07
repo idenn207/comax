@@ -41,7 +41,7 @@ WEBSITE_DIR   := website
 VERSION   := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS   := -X '$(PKG)/internal/version.Version=$(VERSION)'
 
-.PHONY: build build-server-nodash test cover lint bench docker xbuild clean \
+.PHONY: build build-server-nodash test cover lint bench docker xbuild xbuild-release clean \
         dashboard dashboard-clean dev dev-api dev-web sdk website
 
 # Production build: dashboard first (so dist/ is populated), then the
@@ -129,6 +129,30 @@ xbuild:
 	GOOS=linux GOARCH=amd64           CGO_ENABLED=0 $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/secret-linux-amd64  ./cmd/cli
 	GOOS=linux GOARCH=arm64           CGO_ENABLED=0 $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/secret-linux-arm64  ./cmd/cli
 	GOOS=linux GOARCH=arm   GOARM=7   CGO_ENABLED=0 $(GO) build -trimpath -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/secret-linux-armv7  ./cmd/cli
+
+# Release cross-compile (M8). Single source of truth for the published CLI
+# binaries so release.yml produces byte-for-byte what `make` produces — no
+# ldflags/target drift between CI and the release workflow (security review S8).
+# REL_VERSION defaults to the git-derived VERSION; release.yml passes the tag.
+# Emits ./dist/secret-<os>-<arch>[.exe] for every target + a SHA256SUMS manifest.
+REL_DIR      := dist
+REL_VERSION  ?= $(VERSION)
+REL_LDFLAGS  := -X '$(PKG)/internal/version.Version=$(REL_VERSION)' -s -w
+# space-separated os/arch[/goarm] triples
+REL_TARGETS  := linux/amd64 linux/arm64 linux/arm/7 darwin/amd64 darwin/arm64 windows/amd64
+xbuild-release:
+	@mkdir -p $(REL_DIR)
+	@for t in $(REL_TARGETS); do \
+	  os=$${t%%/*}; rest=$${t#*/}; arch=$${rest%%/*}; arm=$${rest#*/}; \
+	  [ "$$arm" = "$$arch" ] && arm=""; \
+	  ext=""; [ "$$os" = "windows" ] && ext=".exe"; \
+	  suffix=$$arch; [ -n "$$arm" ] && suffix=$${arch}v$${arm}; \
+	  out=$(REL_DIR)/secret-$$os-$$suffix$$ext; \
+	  echo "  build $$out (v=$(REL_VERSION))"; \
+	  GOOS=$$os GOARCH=$$arch GOARM=$$arm CGO_ENABLED=0 $(GO) build -trimpath -ldflags "$(REL_LDFLAGS)" -o $$out ./cmd/cli || exit 1; \
+	done
+	cd $(REL_DIR) && sha256sum secret-* > SHA256SUMS
+	@echo "release artifacts + SHA256SUMS written to $(REL_DIR)/"
 
 clean:
 	rm -rf $(BIN_DIR) $(COVER_OUT)

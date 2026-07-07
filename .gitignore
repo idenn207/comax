@@ -3,6 +3,9 @@
 
 # Build artefacts
 /bin/
+# Release cross-compile output (make xbuild-release). Built fresh on CI and
+# attached to the GitHub Release; never committed.
+/dist/
 *.exe
 *.dll
 *.so
