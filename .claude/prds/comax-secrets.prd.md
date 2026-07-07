@@ -135,7 +135,7 @@
 | 4   | **Webhooks + Secret referencing/overrides** | Secret 변경 → Docker 서비스 재시작 webhook. inline 참조와 env override 모델.        | complete    | [plan](../plans/completed/comax-secrets-m4-webhooks.plan.md) · [report](../reports/comax-secrets-m4-webhooks.report.md) <br/>(참조/오버라이드는 M1/M2 resolver로 선-배송; 본 마일스톤 실질 범위=webhooks. gate: impeccable layout + cross-gate dedupe(codex plan R1) + code-review APPROVE(CRITICAL/HIGH 0); PR #13 (merge `27ef96b`, 2026-07-03); receipt: `.claude/receipts/mccp-{plan,implement,pr}-codex,code-reviewer/comax-secrets-m4-webhooks.json`, git-ignored) |
 | 5   | **Node/TS SDK + npm publish**               | Next.js 앱에서 runtime 시크릿 fetch + cache + reload.                               | complete    | [plan](../plans/completed/comax-secrets-m5-node-ts-sdk.plan.md) · [report](../reports/comax-secrets-m5-node-ts-sdk.report.md) <br/>(`@comax-secrets/sdk` zero-dep, dual ESM/CJS. gate: plan-codex needs-attention 4건 흡수(D5/D8/D9) + cross-gate dedupe(implement) + pr-codex adversarial(0 findings) + security-reviewer(4 PASS·1 HIGH→triage LOW/비차단); 41 tests·cov 95.2%·live smoke PASS; receipt: `.claude/receipts/mccp-{plan,implement,pr}-codex/comax-secrets-m5-node-ts-sdk.json`, git-ignored; PR #15 (merge `cc8e882`, 2026-07-04)) |
 | 6   | **Website + Docs (Next.js, Vercel)**        | 랜딩 + quickstart + self-host + CLI/SDK reference + action 예제 + SEO.              | complete    | [plan](../plans/completed/comax-secrets-m6-website-docs.plan.md) · [report](../reports/comax-secrets-m6-website-docs.report.md) <br/>(별도 `website/` Next.js 15 App Router + Vercel(OQ#4 상속: 대시보드와 분리). landing + docs 8종(MDX/Shiki, SSG, cmd+K 검색) + SEO(sitemap/robots/OG/JSON-LD). gate: plan-codex needs-attention 4건 흡수(F1/F2/F3/F4) + implement-codex needs-attention 4건 흡수(impl-F1~F4) + impeccable shape(identity-preserving monochrome + 1 brand accent); typecheck 0·lint 0·SSG 15 routes·verify 4종(token-parity/coverage/drift/site-url) green·runtime smoke PASS; receipt: `.claude/receipts/mccp-{plan,implement}-codex/comax-secrets-m6-website-docs.json`, git-ignored; PR: #16 (merged)) |
-| 7   | **(Decision)** Infra config templating PoC  | redis.conf / nginx.conf 환경별 렌더링 v1 포함 여부 결정.                            | pending     | —                                                                                               |
+| 7   | **(Decision)** Infra config templating PoC  | redis.conf / nginx.conf 환경별 렌더링 v1 포함 여부 결정. **→ 결정: IN(v1)**, `secret render` staging-only. | complete    | [plan](../plans/completed/comax-secrets-m7-infra-config-templating.plan.md) · [report](../reports/comax-secrets-m7-infra-config-templating.report.md) <br/>(결정=**In(v1)**: 단일 템플릿→N환경(`${{ self.KEY }}`)+cross-env, 클라이언트측 render로 서버 변경 0·스코프폭주 미실현. gate: plan-codex 3건(F1~F3)+implement-codex 2건(impl-F1/F2)+security-reviewer(CRITICAL/HIGH triage, self-host 위협모델) 전부 흡수; `internal/tmpl` cov 100%·CLI가 서버 deps 미링크(cold-start 보호). 라이브 in-place 교체·서버 `self` 예약은 v1-full fast-follow(backlog). receipt: `.claude/receipts/mccp-{plan,implement}-codex/comax-secrets-m7-infra-config-templating.json`, git-ignored) |
 | 8   | **Public release (MIT)**                    | GitHub repo + npm 패키지 + docs site + GH Action marketplace 등록.                  | pending     | —                                                                                               |
 
 ## Open Questions
@@ -152,9 +152,9 @@
 - [ ] **#4 Dashboard 와 Website 의 코드베이스 분리/통합**
   - 후보: ① 모노레포 + Next.js 한 앱 (route 분기), ② Next.js (마케팅) + 별도 SPA (대시보드).
   - SEO 는 마케팅 페이지만 중요 → 통합 시 SSR/CSR 경계 정의 필요. `/plan` 에서 확정.
-- [ ] **#5 Infra config templating (redis.conf, nginx.conf) v1 포함 여부**
-  - 사용자의 실제 페인에 직접 부합하나 envvar 모델과 별도 시스템 필요.
-  - **결정 보류** — PoC 후 In/Out 판단.
+- [x] **#5 Infra config templating (redis.conf, nginx.conf) v1 포함 여부** — **해결(M7): IN(v1)**.
+  - PoC 결과 "envvar 모델과 별도 시스템 필요"라는 우려는 실현되지 않음: 기존 `${{ env.KEY }}` 문법+resolver를 재사용한 클라이언트측 `secret render`로 서버 변경 0. 단일 템플릿→N환경(`${{ self.KEY }}`)+cross-env 동작 실증.
+  - v1 범위는 `secret render`(staging-only). 라이브 config in-place 무중단 교체는 fast-follow(backlog). 근거: [report](../reports/comax-secrets-m7-infra-config-templating.report.md).
 - [ ] **#6 CLI 구현 언어 (Go vs Rust)**
   - Cold start, 단일 바이너리 배포, cross-compile 측면에서 둘 다 후보. `/plan` 에서 trade-off 분석.
 - [ ] **#7 본인 운영 환경 telemetry/측정 방법**

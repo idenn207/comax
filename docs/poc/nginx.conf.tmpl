@@ -1,0 +1,18 @@
+# nginx.conf — M7 PoC template, rendered per-env by `secret render`.
+# self  -> the env being rendered; shared -> a cross-env reference
+# (the existing resolver already supports cross-env, so render must too).
+upstream app {
+    server ${{ shared.UPSTREAM_HOST }}:${{ self.APP_PORT }};
+}
+server {
+    listen 443 ssl;
+    server_name ${{ self.SERVER_NAME }};
+    ssl_certificate     ${{ self.TLS_CERT_PATH }};
+    ssl_certificate_key ${{ self.TLS_KEY_PATH }};
+    location / {
+        proxy_pass http://app;
+        # nginx's own $-variables survive verbatim — only ${{ }} is a ref:
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}

@@ -1,6 +1,6 @@
 ---
 title: CLI 레퍼런스
-description: secret 커맨드 11개 서브커맨드의 완전 가이드.
+description: secret 커맨드 12개 서브커맨드의 완전 가이드.
 ---
 
 ## CLI 레퍼런스
@@ -152,6 +152,24 @@ secret export --env prod
 - `--format`: `dotenv` (기본) | `github-env` (GitHub Actions)
 - `--env`: 환경 이름 (기본: resolved env)
 - `--quiet`: 상태 메시지 억제
+
+## secret render
+
+인프라 설정 템플릿(redis.conf/nginx.conf 등)의 `${{ env.KEY }}` 플레이스홀더를 해석된 시크릿 값으로 채워 **staging 파일**에 씁니다 (M7 PoC, staging 전용).
+
+```bash
+secret render --template redis.conf.tmpl --out tmp-render/redis.{env}.conf --env prod
+# ${{ self.KEY }}   → 렌더 중인 env의 KEY (단일 템플릿, 여러 env)
+# ${{ shared.KEY }} → 다른 env의 KEY (cross-env 참조)
+```
+
+렌더 결과물은 평문 시크릿을 담으므로 `--out`은 git worktree 내부의 gitignored 경로여야 합니다 (예: `tmp-render/`). `--out -`(stdout)은 지원하지 않고, 활성 설정을 제자리에서 덮어쓰지 않습니다.
+
+**플래그:**
+- `--template`: 렌더할 템플릿 파일 (필수)
+- `--out`: 출력 staging 파일; `{env}` 토큰은 해석된 env로 치환 (필수)
+- `--env`: 대상 env (resolver 재정의)
+- `--quiet`: 상태 메시지 억제 (보안 거부는 억제하지 않음)
 
 ## secret token
 

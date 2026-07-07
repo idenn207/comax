@@ -97,6 +97,11 @@ deploy/compose/keys/
 .env.*
 !.env.example
 
+# M7 infra-config-templating PoC — `secret render` staging output. Rendered
+# config files contain plaintext secrets; render refuses to write to any
+# non-gitignored path, so this staging dir is the sanctioned sink.
+tmp-render/
+
 # Dashboard SPA build output. Committed only via .gitkeep so the
 # `//go:embed all:dist` directive resolves to at least one entry even
 # before `make dashboard` has produced a real bundle.
