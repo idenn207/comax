@@ -8,13 +8,19 @@ import { cn } from '@/lib/cn';
 export function DocsSidebar() {
   const pathname = usePathname();
   return (
-    <nav aria-label="문서 목차" className="flex flex-col gap-6">
+    <nav aria-label="문서 목차" className="flex flex-col gap-5">
       {docsNav.map((group) => (
         <div key={group.group}>
-          <h2 className="mb-2 px-3 text-xs font-semibold uppercase tracking-wide text-muted">
+          {/* Group label is not a heading: it precedes the page <h1> in DOM
+              order, so making it an <h2> breaks the document outline. The <ul>
+              carries the group name programmatically via aria-label instead. */}
+          <p
+            aria-hidden
+            className="mb-2 pl-3 text-xs font-semibold uppercase tracking-wider text-text-faint"
+          >
             {group.group}
-          </h2>
-          <ul className="flex flex-col gap-0.5">
+          </p>
+          <ul aria-label={group.group} className="flex flex-col">
             {group.items.map((item) => {
               const href = docHref(item.slug);
               const active = pathname === href;
@@ -24,10 +30,10 @@ export function DocsSidebar() {
                     href={href}
                     aria-current={active ? 'page' : undefined}
                     className={cn(
-                      'block rounded-md px-3 py-1.5 text-sm transition-colors duration-fast',
+                      'block border-l py-1.5 pl-3 text-sm leading-snug transition-colors duration-fast',
                       active
-                        ? 'bg-surface-active font-medium text-text'
-                        : 'text-text-subtle hover:bg-surface-hover hover:text-text',
+                        ? 'border-text font-semibold text-text'
+                        : 'border-border text-text-subtle hover:border-border-strong hover:text-text',
                     )}
                   >
                     {item.title}

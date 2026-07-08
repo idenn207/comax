@@ -3,11 +3,9 @@ title: Node/TypeScript SDK
 description: Next.js, Node, Edge Runtime에서 런타임 시크릿 페칭, 캐싱, 리로드.
 ---
 
-## Node/TypeScript SDK
-
 `@comax-secrets/sdk`는 Comax Secrets 서버에서 런타임에 시크릿을 가져오는 경량 SDK입니다. Next.js·Node·Edge에서 **fetch + cache + reload**를 제공하며, 런타임 의존성이 없습니다 (global `fetch`만 사용).
 
-## 설치
+## 설치 {#installation}
 
 ```bash
 npm install @comax-secrets/sdk
@@ -15,7 +13,7 @@ npm install @comax-secrets/sdk
 
 Node 18+ 필요 (global `fetch`). Edge Workers, Deno, Bun에서도 작동합니다.
 
-## 빠른 시작
+## 빠른 시작 {#quick-start}
 
 환경 변수에서 자동으로 초기화:
 
@@ -49,9 +47,9 @@ const key = await secrets.get("STRIPE_KEY");
 서버 전용. 서비스 토큰은 환경의 모든 시크릿 읽기 권한을 줍니다. 토큰이 브라우저에 도달하는 곳(클라이언트 컴포넌트, 번들 클라이언트 코드)에서 절대 사용하지 마세요. Route Handler, Server Component, middleware, 또는 서버 runtime에서만 사용합니다.
 </Callout>
 
-## Next.js 패턴
+## Next.js 패턴 {#nextjs-patterns}
 
-### 모듈 스코프 싱글턴
+### 모듈 스코프 싱글턴 {#module-scope-singleton}
 
 서버리스/Edge에서 콜드 스타트마다 모듈 상태가 초기화됩니다. 캐시는 warm 인스턴스 내에서만 작동합니다 (persistent하지 않음). 클라이언트를 모듈 스코프에 한 번 만들어 재사용하세요:
 
@@ -110,7 +108,7 @@ const secrets = createClient({
 
 ## SecretsClient API
 
-### `get(key: string, signal?: AbortSignal): Promise<string>`
+### `get(key: string, signal?: AbortSignal): Promise<string>` {#get}
 
 한 시크릿의 값을 페칭합니다. 단일-키 캐시 + 스마트 fetch.
 
@@ -118,7 +116,7 @@ const secrets = createClient({
 const value = await secrets.get("DB_URL");
 ```
 
-### `getAll(signal?: AbortSignal): Promise<Record<string, string>>`
+### `getAll(signal?: AbortSignal): Promise<Record<string, string>>` {#get-all}
 
 환경 전체를 `{ KEY: value }` 맵으로 페칭합니다 (bulk inject, opt-in). 모든 키를 메모리에 로드합니다.
 
@@ -126,7 +124,7 @@ const value = await secrets.get("DB_URL");
 const allSecrets = await secrets.getAll();
 ```
 
-### `preload(signal?: AbortSignal): Promise<Secret[]>`
+### `preload(signal?: AbortSignal): Promise<Secret[]>` {#preload}
 
 환경 전체를 `Secret[]`로 페칭합니다 (version + updated_at 포함).
 
@@ -135,7 +133,7 @@ const secretsList = await secrets.preload();
 // [{ key: "DB_URL", value: "...", version: 5, updated_at: "..." }, ...]
 ```
 
-### `has(key: string): boolean`
+### `has(key: string): boolean` {#has}
 
 캐시에 신선한 상태로 있으면 true (fetch 없음).
 
@@ -145,7 +143,7 @@ if (secrets.has("DB_URL")) {
 }
 ```
 
-### `reload(key?: string): void`
+### `reload(key?: string): void` {#reload}
 
 캐시 무효화. 다음 read가 refetch합니다.
 
@@ -154,7 +152,7 @@ secrets.reload("DB_URL");  // 한 키만
 secrets.reload();           // 전체 무효화
 ```
 
-### `startAutoRefresh() / stopAutoRefresh()`
+### `startAutoRefresh() / stopAutoRefresh()` {#auto-refresh}
 
 long-running Node 서버: 백그라운드에서 주기적으로 갱신 (Edge/serverless에는 불적합).
 
@@ -168,7 +166,7 @@ secrets.startAutoRefresh();
 secrets.stopAutoRefresh();
 ```
 
-## 에러 처리
+## 에러 처리 {#error-handling}
 
 모든 실패는 `ComaxError` 또는 하위 타입을 던집니다. 값·토큰은 에러 메시지에 절대 포함되지 않습니다.
 
@@ -205,7 +203,7 @@ try {
 | `network` | 네트워크 실패 |
 | `invalid_response` | 응답 envelope 파싱 실패 |
 
-## 웹훅 기반 캐시 무효화
+## 웹훅 기반 캐시 무효화 {#webhook-cache-invalidation}
 
 M4 웹훅으로 시크릿 변경을 감지해 캐시를 실시간으로 리로드합니다.
 
@@ -239,7 +237,7 @@ export async function POST(req: Request) {
 
 서명 스킴: `sha256=hex(HMAC-SHA256(secret, "<timestamp>.<body>"))`. Replay 방지를 위해 타임스탐프가 내장되어 있습니다.
 
-## 환경 변수
+## 환경 변수 {#environment-variables}
 
 | 변수 | 예제 |
 |---|---|

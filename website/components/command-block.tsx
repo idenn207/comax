@@ -35,7 +35,7 @@ export function CommandBlock({
         </span>
         <span className="ml-1 font-mono text-xs text-muted">{label}</span>
       </div>
-      <pre className="overflow-x-auto px-4 py-4 font-mono text-sm leading-relaxed text-code-text">
+      <pre className="scrollbar-thin overflow-x-auto px-4 py-4 font-mono text-sm leading-relaxed text-code-text">
         <code>
           {lines.map((line, i) => {
             if (line.kind === 'comment') {

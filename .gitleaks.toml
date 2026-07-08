@@ -19,6 +19,10 @@ paths = [
   # Docs and marketing copy use illustrative tokens/URLs, not live secrets.
   '''docs/.*''',
   '''website/content/.*''',
+  # Landing demo component: intentionally fake sample secret values
+  # (truncated sk_test_ Stripe placeholders + dummy passwords) rendered as the
+  # product's "real imagery" — never live credentials. See the file's header.
+  '''website/components/secret-demo\.tsx''',
   # Vendored JS licenses / lockfiles under website deps.
   '''website/node_modules/.*''',
 ]

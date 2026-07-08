@@ -46,14 +46,25 @@ export function extractToc(source: string): TocItem[] {
     const m = /^(#{2,3})\s+(.+?)\s*$/.exec(line);
     if (m && m[1] && m[2]) {
       const depth = m[1].length as 2 | 3;
-      const text = m[2].replace(/[`*_]/g, '').trim();
-      toc.push({ depth, text, id: slugger.slug(text) });
+      let text = m[2].replace(/[`*_]/g, '').trim();
+      // Honor an explicit `## 제목 {#slug}` marker (same rule as remarkHeadingId)
+      // so the TOC/search anchor matches the rendered id; fall back to the
+      // github-slugger auto slug for unmarked (already-English) headings.
+      const explicit = /\s*\{#([a-z0-9]+(?:-[a-z0-9]+)*)\}\s*$/.exec(text);
+      let id: string;
+      if (explicit && explicit[1]) {
+        id = explicit[1];
+        text = text.slice(0, explicit.index).trim();
+      } else {
+        id = slugger.slug(text);
+      }
+      toc.push({ depth, text, id });
     }
   }
   return toc;
 }
 
-export type DocFrontmatter = { title: string; description: string };
+export type DocFrontmatter = { title: string; description: string; eyebrow?: string };
 
 /** Minimal frontmatter reader for the search index (no MDX compile). */
 export function readDocFrontmatter(slug: string): DocFrontmatter {

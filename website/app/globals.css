@@ -1,3 +1,15 @@
+/* Self-hosted Pretendard Variable — same-origin (satisfies CSP font-src 'self'),
+   so the site's Korean typography renders in the design-system font 1:1 instead
+   of falling through to the OS font (맑은 고딕), which is wider and re-wraps
+   headings. font-display: swap keeps text visible during the ~2MB variable load. */
+@font-face {
+  font-family: 'Pretendard Variable';
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/PretendardVariable.woff2') format('woff2');
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -9,13 +21,15 @@
  * marketing site and the operator dashboard read as one product
  * (check-token-parity.mjs enforces parity — Codex F4).
  *
- * Identity-preservation: the dashboard is deliberately monochrome ("색은 의미에만",
- * GitHub reference). The website keeps that. The single chromatic note is the
- * EXISTING blue (hue 250 — the same family as the focus ring and --color-info),
- * codified here as --color-brand and used only for links + ONE hero emphasis
- * (impeccable Output Constraint #2: accent ≤1 per viewport). It is NOT a new
- * invented SaaS-indigo accent — that lane is a PRODUCT.md anti-reference. The
- * primary CTA stays monochrome graphite filled, exactly like the dashboard.
+ * Identity: the dashboard is deliberately monochrome ("색은 의미에만", GitHub
+ * reference). The website keeps that. The single chromatic note is the EXISTING
+ * blue (hue 250, the same family as the focus ring and --color-info), codified
+ * as --color-brand and used only for links + accents. The primary CTA stays
+ * monochrome graphite filled, exactly like the dashboard.
+ *
+ * (The short-lived teal experiment was reverted: the Comax Home v2 direction
+ * re-unifies the site with the dashboard, so token parity now holds in full.
+ * --color-brand* is simply an alias of the shared blue, not an exception.)
  */
 
 :root,
@@ -46,11 +60,15 @@
   --color-accent-text: oklch(98% 0.002 260);
   --color-accent-strong: oklch(14% 0.01 260);
 
-  /* ── Brand accent (website-only, D10) — the existing blue-250 identity ── */
-  --color-brand: oklch(52% 0.15 250);
-  --color-brand-hover: oklch(46% 0.16 250);
-  --color-brand-soft: oklch(95% 0.03 250);
-  --color-brand-text: oklch(99% 0.005 250);
+  /* ── Brand accent (website-only) — the shared blue 250, aliased to --color-info.
+     Same hue as the focus ring; carries links + accents on the landing. ── */
+  --color-brand: oklch(50% 0.14 250);
+  --color-brand-hover: oklch(38% 0.14 250);
+  --color-brand-active: oklch(38% 0.14 250);
+  --color-brand-soft: oklch(94% 0.04 250);
+  --color-brand-soft-hover: oklch(90% 0.05 250);
+  --color-brand-strong: oklch(38% 0.14 250);
+  --color-brand-text: oklch(98% 0.002 260);
 
   /* ── Semantic (state only) ── */
   --color-danger: oklch(52% 0.2 25);
@@ -61,8 +79,10 @@
   --color-warning-strong: oklch(42% 0.16 70);
   --color-success: oklch(48% 0.12 150);
   --color-success-soft: oklch(94% 0.04 150);
+  --color-success-strong: oklch(36% 0.12 150);
   --color-info: oklch(50% 0.14 250);
   --color-info-soft: oklch(94% 0.04 250);
+  --color-info-strong: oklch(38% 0.14 250);
 
   /* ── Code surface ── */
   --color-code-bg: oklch(96% 0.004 260);
@@ -70,6 +90,9 @@
 
   /* ── Focus ring ── */
   --color-focus-ring: oklch(58% 0.18 250);
+
+  /* ── Overlay scrim (modal/drawer backdrop) ── */
+  --color-overlay: oklch(0% 0 0 / 0.4);
 
   /* ── Typography ── */
   --text-xs: 0.75rem;
@@ -87,6 +110,11 @@
   --line-normal: 1.6;
   --line-relaxed: 1.75;
 
+  /* ── Font weights ── */
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
   /* ── Font families (system fallback chain, no network fetch) ── */
   --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont,
     'Apple SD Gothic Neo', 'Malgun Gothic', '맑은 고딕', 'Segoe UI', system-ui, ui-sans-serif,
@@ -99,8 +127,10 @@
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
+  --space-10: 40px;
   --space-12: 48px;
   --space-16: 64px;
   --space-24: 96px;
@@ -153,10 +183,13 @@
   --color-accent-text: oklch(15% 0.006 260);
   --color-accent-strong: oklch(100% 0 0);
 
-  /* Brand brightens for dark parity (matches --color-info dark). */
+  /* Brand brightens for dark (shared blue 250, aliased to --color-info). */
   --color-brand: oklch(72% 0.14 250);
-  --color-brand-hover: oklch(78% 0.14 250);
-  --color-brand-soft: oklch(26% 0.06 250);
+  --color-brand-hover: oklch(84% 0.14 250);
+  --color-brand-active: oklch(72% 0.14 250);
+  --color-brand-soft: oklch(24% 0.06 250);
+  --color-brand-soft-hover: oklch(28% 0.07 250);
+  --color-brand-strong: oklch(84% 0.14 250);
   --color-brand-text: oklch(15% 0.006 260);
 
   --color-danger: oklch(72% 0.2 25);
@@ -167,13 +200,17 @@
   --color-warning-strong: oklch(88% 0.16 70);
   --color-success: oklch(72% 0.12 150);
   --color-success-soft: oklch(24% 0.05 150);
+  --color-success-strong: oklch(82% 0.12 150);
   --color-info: oklch(72% 0.14 250);
   --color-info-soft: oklch(24% 0.06 250);
+  --color-info-strong: oklch(84% 0.14 250);
 
   --color-code-bg: oklch(20% 0.008 260);
   --color-code-text: oklch(86% 0.008 260);
 
   --color-focus-ring: oklch(72% 0.16 250);
+  /* Darker scrim on dark surfaces so the modal still separates from the page. */
+  --color-overlay: oklch(0% 0 0 / 0.6);
 
   --shadow-sm: 0 1px 2px oklch(0% 0 0 / 0.4);
   --shadow-md: 0 2px 6px oklch(0% 0 0 / 0.5), 0 1px 2px oklch(0% 0 0 / 0.3);
@@ -240,34 +277,249 @@
   }
 }
 
-/* ── Docs: syntax highlighting (rehype-pretty-code, dual theme) ── */
-[data-rehype-pretty-code-figure] {
-  margin: var(--space-6) 0;
+/* ══════════════ Home landing (Comax Home v2) ══════════════ */
+
+/*
+ * Scroll/entrance reveal. Gated on html.is-ready (added by <MotionReady/> on
+ * mount) so the content is fully visible without JS and in headless renderers
+ * — the reveal only enhances an already-visible default, never hides it.
+ */
+html.is-ready .reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 0.6s var(--ease-out-quart),
+    transform 0.6s var(--ease-out-quart);
+}
+html.is-ready .reveal[data-inview='true'] {
+  opacity: 1;
+  transform: none;
 }
 
-[data-rehype-pretty-code-title] {
-  border: 1px solid var(--color-border);
-  border-bottom: 0;
-  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background-color: var(--color-panel);
-  padding: var(--space-2) var(--space-4);
+/* Hero stage — scattered secrets converging into one vault. */
+.hero-stage {
+  position: relative;
+  width: 100%;
+  max-width: 452px;
+  margin-inline: auto;
+  aspect-ratio: 1 / 0.92;
+}
+.hero-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 82%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 50%;
+  opacity: 0.55;
+}
+.hero-ring.r2 {
+  width: 55%;
+  opacity: 0.35;
+}
+.hero-vault-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 176px;
+  height: 150px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--color-info) 30%, transparent),
+    transparent
+  );
+  filter: blur(14px);
+  opacity: 0.5;
+  z-index: 2;
+}
+.hero-vault {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 176px;
+  padding: 20px 18px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-xl);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+  z-index: 3;
+}
+.hero-chip {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
   font-family: var(--font-mono);
   font-size: var(--text-xs);
-  color: var(--color-muted);
+  color: var(--color-text-subtle);
+  background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  z-index: 4;
+}
+.hero-chip .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+}
+
+@keyframes cmx-converge {
+  from {
+    opacity: 0;
+    transform: translate(var(--fx, 0), var(--fy, 0)) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+@keyframes cmx-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes cmx-breathe {
+  from {
+    opacity: 0.32;
+  }
+  to {
+    opacity: 0.62;
+  }
+}
+html.is-ready .hero-chip {
+  opacity: 0;
+  animation: cmx-converge 0.8s var(--ease-out-quart) forwards;
+  animation-delay: var(--d, 0s);
+}
+html.is-ready .hero-vault {
+  opacity: 0;
+  animation: cmx-pop 0.7s var(--ease-out-quart) forwards;
+}
+html.is-ready .hero-vault-glow {
+  animation: cmx-breathe 3.6s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.is-ready .reveal {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  html.is-ready .hero-chip {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+  html.is-ready .hero-vault {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: translate(-50%, -50%) !important;
+  }
+  html.is-ready .hero-vault-glow {
+    animation: none !important;
+  }
+}
+
+/* ══════════════ Docs (Comax Docs — claude_design reproduction) ══════════════ */
+
+/*
+ * The docs surface reproduces the claude_design `Comax Docs` render: a GitHub-
+ * doc-like reading column with hairline-separated sections, terminal-style code
+ * cards (labelled bar + copy affordance), a compact command table, tinted
+ * alerts, and neutral/info badges. Content stays source-accurate; only the
+ * visual language comes from the mock. Tokens are the ones already shared with
+ * the dashboard (token parity), so light/dark both work without new values.
+ */
+
+/* ── Code card: rehype-pretty-code figure styled as a terminal card ── */
+[data-rehype-pretty-code-figure] {
+  margin: 0 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--color-code-bg);
+}
+
+/* Title bar (from ```lang title="…" or injected by <DocsEnhance/>). */
+[data-rehype-pretty-code-title],
+.code-card-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  /* Horizontal padding matches the code lines (space-4) so the bar label and
+     the first code character share one left alignment edge. */
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-surface-hover);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-text-subtle);
+  line-height: 1;
+}
+
+/* Copy button injected into the bar by <DocsEnhance/> (progressive). */
+.code-copy {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-faint);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out-quart),
+    background var(--duration-fast) var(--ease-out-quart),
+    border-color var(--duration-fast) var(--ease-out-quart);
+}
+.code-copy:hover {
+  color: var(--color-text);
+  background: var(--color-surface-active);
+  border-color: var(--color-border);
+}
+.code-copy:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 1px;
+}
+.code-copy[data-copied='true'] {
+  color: var(--color-success-strong);
+}
+/* Touch: extend the tap area past the compact visual box without inflating the
+   bar (the transparent ::after captures taps and bubbles to the button). */
+@media (pointer: coarse) {
+  .code-copy {
+    position: relative;
+  }
+  .code-copy::after {
+    content: '';
+    position: absolute;
+    inset: -10px;
+  }
 }
 
 [data-rehype-pretty-code-figure] pre {
   overflow-x: auto;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
   background-color: var(--color-code-bg);
-  padding: var(--space-4) 0;
+  padding: var(--space-3) 0;
   font-size: var(--text-sm);
   line-height: var(--line-relaxed);
-}
-
-[data-rehype-pretty-code-title] + pre {
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  tab-size: 2;
 }
 
 [data-rehype-pretty-code-figure] code {
@@ -288,46 +540,307 @@
   color: var(--shiki-dark);
 }
 
-/* ── Docs prose (Tailwind Typography mapped to our tokens) ── */
+/* ── Custom scrollbars ──────────────────────────────────────────────────
+ * The OS default scrollbar (chunky, system-gray) breaks the crafted feel of
+ * the terminal code cards and the docs nav wherever a command overflows or
+ * the sidebar runs tall. Replace it on every scroll region: a thin channel,
+ * a graphite thumb (border-strong) that darkens to `muted` when grabbed, and
+ * a transparent inset track so the thumb reads as a floating pill on any
+ * surface (`background-clip: padding-box` lets the transparent border show
+ * the track through). Token-driven, so light/dark both work. Firefox uses the
+ * standard two-keyword `scrollbar-*` props; Chromium/WebKit the `::-webkit-`
+ * pseudos — both are declared. The code figure `pre` is generated markup, so
+ * it opts in by attribute selector; everything else adds `.scrollbar-thin`.
+ */
+.scrollbar-thin,
+[data-rehype-pretty-code-figure] pre {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar,
+[data-rehype-pretty-code-figure] pre::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+.scrollbar-thin::-webkit-scrollbar-track,
+.scrollbar-thin::-webkit-scrollbar-corner,
+[data-rehype-pretty-code-figure] pre::-webkit-scrollbar-track,
+[data-rehype-pretty-code-figure] pre::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb,
+[data-rehype-pretty-code-figure] pre::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-strong);
+  border: 3px solid transparent;
+  border-radius: var(--radius-full);
+  background-clip: padding-box;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover,
+[data-rehype-pretty-code-figure] pre::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-muted);
+}
+
+/* ── Prose: reading column ── */
 .prose {
-  --tw-prose-body: var(--color-text-subtle);
-  --tw-prose-headings: var(--color-text);
-  --tw-prose-links: var(--color-brand);
-  --tw-prose-bold: var(--color-text);
-  --tw-prose-counters: var(--color-muted);
-  --tw-prose-bullets: var(--color-border-strong);
-  --tw-prose-hr: var(--color-border);
-  --tw-prose-quotes: var(--color-text-subtle);
-  --tw-prose-quote-borders: var(--color-border);
-  --tw-prose-code: var(--color-code-text);
-  --tw-prose-th-borders: var(--color-border-strong);
-  --tw-prose-td-borders: var(--color-border);
-  color: var(--tw-prose-body);
-  max-width: none;
+  color: var(--color-text-subtle);
+  max-width: 46rem;
+  font-size: var(--text-base);
 }
 
-/* Inline code (outside highlighted blocks): remove typography backticks. */
-.prose :where(code):not(:where([data-rehype-pretty-code-figure] *))::before,
-.prose :where(code):not(:where([data-rehype-pretty-code-figure] *))::after {
-  content: '';
+.prose p {
+  line-height: var(--line-relaxed);
+  margin: 0 0 var(--space-4);
 }
 
-.prose :where(code):not(:where([data-rehype-pretty-code-figure] *)) {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background-color: var(--color-code-bg);
-  padding: 0.12em 0.36em;
-  font-size: 0.875em;
-  font-weight: 400;
-  color: var(--color-code-text);
+.prose > :first-child {
+  margin-top: 0;
 }
 
-/* Heading anchors added by rehype-autolink-headings. */
-.prose .heading-anchor {
-  color: inherit;
-  text-decoration: none;
+/* An h2 that opens the body would otherwise show its section hairline + top
+   padding directly under the page description. Reset it when it leads. */
+.prose > h2:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* h2 sections separated by a hairline rule, like the mock. */
+.prose h2 {
+  margin: var(--space-10) 0 var(--space-3);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold, 600);
+  letter-spacing: -0.015em;
+  color: var(--color-text);
+}
+
+.prose h3 {
+  margin: var(--space-6) 0 var(--space-2);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold, 600);
+  letter-spacing: -0.01em;
+  color: var(--color-text);
 }
 
 .prose :is(h2, h3) {
   scroll-margin-top: calc(var(--header-height) + 16px);
+  text-wrap: balance;
+}
+
+.prose strong {
+  color: var(--color-text);
+  font-weight: var(--weight-semibold, 600);
+}
+
+/* Body links read as text (monochrome), not blue: text color + a muted
+   underline; the brand accent only appears on hover ("색은 의미에만").
+   Scoped to body containers so heading permalink anchors are never matched. */
+.prose :is(p, li, td, th, blockquote) a {
+  color: inherit;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--color-text-faint);
+  text-underline-offset: 2px;
+  transition:
+    color var(--duration-fast) var(--ease-out-quart),
+    text-decoration-color var(--duration-fast) var(--ease-out-quart);
+}
+.prose :is(p, li, td, th, blockquote) a:hover {
+  color: var(--color-brand);
+  text-decoration-color: currentColor;
+}
+
+/* Lists — faint markers, relaxed rhythm. */
+.prose :is(ul, ol) {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-5);
+  line-height: var(--line-relaxed);
+}
+.prose li {
+  margin: 0 0 var(--space-1);
+}
+.prose li::marker {
+  color: var(--color-text-faint);
+}
+.prose :is(ul, ol) :is(ul, ol) {
+  margin: var(--space-1) 0 var(--space-2);
+}
+
+/* Inline code — a subtle key/path chip (mock's `.ik`). */
+.prose :where(code):not(:where([data-rehype-pretty-code-figure] *))::before,
+.prose :where(code):not(:where([data-rehype-pretty-code-figure] *))::after {
+  content: '';
+}
+.prose :where(code):not(:where([data-rehype-pretty-code-figure] *)) {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-hover);
+  padding: 0.1em 0.36em;
+  font-size: 0.9em;
+  font-weight: 400;
+  color: var(--color-text);
+}
+
+/* Command / reference table (remark-gfm) → the mock's `.cmd-table`. */
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-sm);
+}
+.prose thead th {
+  text-align: left;
+  padding: 0 var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold, 600);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+.prose tbody td {
+  padding: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+  line-height: var(--line-snug);
+  color: var(--color-text-subtle);
+}
+.prose tbody td:first-child {
+  white-space: nowrap;
+  color: var(--color-text);
+}
+.prose tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Table scroll container (MDX `table` component). A long nowrap command cell
+   scrolls inside this block instead of forcing page-level horizontal scroll
+   on narrow viewports (WCAG 1.4.10 Reflow). Keyboard-focusable so it can be
+   scrolled without a pointer. */
+.prose .doc-table {
+  margin: 0 0 var(--space-4);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: var(--radius-xs);
+}
+.prose .doc-table > table {
+  margin: 0;
+}
+.prose .doc-table:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+/* Blockquote — quiet aside. */
+.prose blockquote {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--color-border);
+  color: var(--color-text-faint);
+}
+
+/* Heading permalink: the "#" anchor appended after each heading, hidden until
+   the heading is hovered (or the anchor focused). Targeted structurally (as a
+   direct <a href="#…"> child) because the plugin doesn't emit a stable class. */
+.prose :is(h1, h2, h3) > a[href^='#'] {
+  margin-left: 0.35em;
+  color: var(--color-text-faint);
+  font-size: 0.7em;
+  font-weight: 400;
+  text-decoration: none;
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) var(--ease-out-quart),
+    color var(--duration-fast) var(--ease-out-quart);
+}
+.prose :is(h1, h2, h3):hover > a[href^='#'],
+.prose :is(h1, h2, h3) > a[href^='#']:focus-visible {
+  opacity: 1;
+}
+.prose :is(h1, h2, h3) > a[href^='#']:hover {
+  color: var(--color-brand);
+}
+
+/* ── Docs bits: eyebrow + inline badges ── */
+.doc-eyebrow {
+  display: block;
+  margin-bottom: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold, 600);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-faint);
+}
+
+.doc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold, 600);
+  line-height: 1;
+  vertical-align: middle;
+}
+.doc-badge--neutral {
+  background: var(--color-surface-hover);
+  color: var(--color-text-subtle);
+  border: 1px solid var(--color-border);
+}
+.doc-badge--info {
+  background: var(--color-info-soft);
+  color: var(--color-info-strong);
+}
+.doc-badge--success {
+  background: var(--color-success-soft);
+  color: var(--color-success-strong);
+}
+
+/* ── Docs alert (Callout) — tinted ground + tinted hairline + semantic icon.
+   Meaning is carried by icon + tint, never a side-stripe (impeccable ban). ── */
+.doc-alert {
+  display: flex;
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  line-height: var(--line-normal);
+  color: var(--color-text-subtle);
+}
+.doc-alert-icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.doc-alert-body > :first-child {
+  margin-top: 0;
+}
+.doc-alert-body > :last-child {
+  margin-bottom: 0;
+}
+.doc-alert--info {
+  background: var(--color-info-soft);
+  border-color: color-mix(in srgb, var(--color-info) 38%, var(--color-border));
+}
+.doc-alert--info .doc-alert-icon {
+  color: var(--color-info);
+}
+.doc-alert--warning {
+  background: var(--color-warning-soft);
+  border-color: color-mix(in srgb, var(--color-warning) 44%, var(--color-border));
+}
+.doc-alert--warning .doc-alert-icon {
+  color: var(--color-warning-strong);
+}
+.doc-alert--danger {
+  background: var(--color-danger-soft);
+  border-color: color-mix(in srgb, var(--color-danger) 44%, var(--color-border));
+}
+.doc-alert--danger .doc-alert-icon {
+  color: var(--color-danger-strong);
 }

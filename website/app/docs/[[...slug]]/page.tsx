@@ -54,13 +54,16 @@ export default async function DocPage({ params }: { params: Promise<Params> }) {
   return (
     <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_12rem] xl:gap-10">
       <article className="min-w-0">
-        <header className="mb-8 border-b border-border pb-6">
-          <h1 className="text-3xl font-semibold text-text">{frontmatter.title}</h1>
+        <header className="mb-7">
+          {frontmatter.eyebrow && <span className="doc-eyebrow">{frontmatter.eyebrow}</span>}
+          <h1 className="text-3xl font-semibold tracking-tight text-text">{frontmatter.title}</h1>
           {frontmatter.description && (
-            <p className="mt-2 text-md text-text-subtle">{frontmatter.description}</p>
+            <p className="mt-3 max-w-[46rem] text-md leading-relaxed text-text-subtle">
+              {frontmatter.description}
+            </p>
           )}
         </header>
-        <div className="prose prose-base">{content}</div>
+        <div className="prose">{content}</div>
         <DocPager prev={prev} next={next} />
       </article>
       <aside className="hidden xl:block">
