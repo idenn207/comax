@@ -72,6 +72,7 @@ go.work
 go.work.sum
 
 # Editor / IDE
+.samples/
 .vscode/
 .idea/
 .playwright-mcp/

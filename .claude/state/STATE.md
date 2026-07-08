@@ -1,47 +1,48 @@
 ---
 state_version: 1
-task_fingerprint: comax-secrets-m6-website-docs
+task_fingerprint: comax-secrets-m8-public-release
 created_at: 2026-06-13T09:30:53.231Z
-updated_at: 2026-07-04T13:24:24.995Z
+updated_at: 2026-07-07T10:17:55.487Z
 last_event: stop_loop_pass
-last_event_at: 2026-07-04T08:47:50.399Z
+last_event_at: 2026-07-07T10:17:55.487Z
 unsafe_checkpoint: false
 confirm_required: false
 next_chunk: |
-  M6 완료·머지(PR #16) + 문서 정합화(plan 아카이브·PRD complete·backlog). 활성 작업
-  없음. 다음 PRD 마일스톤 선택 대기.
-session_end_imminent: true
-chain_aborted: true
+  M8 공개 릴리스 인프라 머지 완료(PR #20 → master 574adee). in-repo 인프라는
+  끝났고, 남은 것은 비가역 Operator Runbook 1–8(사람 실행). plan 아카이브·PRD
+  행8 complete 전환은 릴리스 완료 후로 연기.
+session_end_imminent: false
+chain_aborted: false
 dep_check_at: 2026-06-15T16:09:58.866Z
 ---
 ## Goal
-Comax Secrets M6 (Website + Docs, Next.js/Vercel). /mccp:work full 체인.
+Comax Secrets M8 (Public Release, MIT). 이미 public인 레포를 신뢰 가능한 릴리스로 완성. /mccp:pr 게이트 → master 머지 완료.
 
 ## Plan
-- .claude/plans/completed/comax-secrets-m6-website-docs.plan.md (아카이브 완료; plan-codex + implement-codex receipt valid)
+- .claude/plans/comax-secrets-m8-public-release.plan.md (**미아카이브** — Operator Runbook 비가역 단계 잔존. 릴리스 완료 후 completed/로 이동)
 
 ## Done
-- M6 전체 구현: website/ (Next.js 15 App Router + React 19 + Tailwind 3.4 + Vercel), 별도 코드베이스(OQ#4 상속)
-- 랜딩(hero+4축 bento+quickstart teaser+CTA, JSON-LD) + docs 8종(MDX/Shiki SSG, sidebar/TOC/prev-next/cmd+K 검색) + SEO(sitemap/robots/OG/JSON-LD)
-- 디자인: impeccable shape(guard hook), identity-preserving monochrome + brand accent 1개(D10), side-stripe 자체검열, heading depth ≤3
-- Codex plan-gate 4건(F1~F4) + implement-gate 4건(impl-F1~F4) 전부 흡수(0 blocking)
-- Validation green: typecheck 0, lint 0, next build SSG 15 routes, verify 4종(token-parity/coverage/drift/site-url fail-closed) PASS, runtime smoke PASS(landing/docs/sitemap/robots/404/OG)
-- 리포 통합: Makefile website 타깃, .github/workflows/website.yml, README link-out, docs stub(quickstart/github-actions/webhooks), PRD #6 complete
-- report: .claude/reports/comax-secrets-m6-website-docs.report.md
-- 커밋 전 코드 리뷰(/mccp:code-review Local Mode) + 수정 반영: 도메인 리뷰어 4종 병렬, CRITICAL/HIGH 0, npm audit 0 vulns, 재검증 green
-- PR #16 머지 완료. CI 정합화: website.yml drift 트리거에 소스 계약 경로 추가(Codex stop-review), lockfile 클린 재생성(npm ci EUSAGE fix). 문서 정합화: plan→completed/ 아카이브, PRD #6 링크 갱신, backlog에 L2·CSP 후속 기록.
+- M8 in-repo 인프라 구현·머지(PR #20 → master `574adee`, squash). in-repo = 되돌릴 수 있는 부분만.
+- 릴리스 자동화: release.yml(bare-major 거부 CF1·attest-build-provenance F1·RC boot smoke F4) + promote-v1.yml(dispatch+environment 승인) + `make xbuild-release`(6 타깃 + SHA256SUMS + ldflags 버전).
+- 공급망 검증: action.yml `cli-version` 다운로드(SHA256SUMS 체크섬 + `gh attestation verify --signer-workflow` 바인딩 CF2·안전 os/arch 매핑·per-run tmpdir·semver regex) + secret-scan.yml(gitleaks 전체이력+증분+주간) + .gitleaks.toml.
+- OSS 메타: LICENSE(MIT)·SECURITY.md·CONTRIBUTING.md·CODE_OF_CONDUCT.md·ISSUE/PR 템플릿. 문서: README 공개 리라이트 + install.mdx + docs-nav.
+- 게이트: PR-Codex 1라운드 수렴(actionable 0) · security-reviewer 신규 CRITICAL/HIGH 0 · impeccable silent-skip(no-signal) · receipt valid.
+- **CI가 잡은 실제 회귀 fix**: action.yml 설명문의 `${{ github.event.* }}`가 매니페스트 로드를 깨뜨림(action-smoke fail) → `${{ }}` 벗겨 수정(fix 커밋, squash에 포함). master action-smoke green. → [[comax-action-yml-expression-trap]]
+- report: .claude/reports/comax-secrets-m8-public-release.report.md
 
 ## In Progress
-없음 — M6 종료.
+없음(in-repo). **대기: Operator Runbook 1–8**(비가역·사람 실행) — 결정 확정 → rename(comax→comax-secrets) → v1 tag ruleset → RC 리허설 → 정식 릴리스 → v1 승급 → npm publish → Marketplace 등록.
 
 ## Next Step
-다음 PRD 마일스톤 선택(M7+). M6 후속(비차단): backlog의 L2(JSON-LD image)·CSP nonce/hash 강화·source-generated reference(F2).
+1. Operator Runbook 1–8 순차 실행(runbook은 report 참조). 각 단계 비가역 — 사람이 게이트.
+2. 릴리스 완료 후: plan → completed/ 아카이브, PRD 행8 `complete` 전환, STATE 문서 정합화(M6 #17 패턴).
+3. 또는 다음 PRD 마일스톤 선택.
 
 ## Last Decision
-M6 머지(PR #16) 후 문서 정합화. 세션 처리 요약: 커밋 전 코드 리뷰(CRITICAL/HIGH 0, 오탐 3건 기각)로 M1~L3 수정; 파괴적 dep 상향(next-mdx-remote 6·next 15.5.20)은 build 게이트로 회귀 0 확인 후 채택; Codex stop-review 지적(docs-drift 트리거가 소스 계약 변경 미포착)으로 website.yml paths에 cmd/cli/main.go·action.yml·sdk/src/index.ts 추가; CI npm ci EUSAGE(Windows 생성 lockfile의 Linux optional dep 누락)는 lockfile 클린 재생성으로 해결; postcss는 overrides:$postcss로 정밀 dedupe(audit-fix --force의 next@9.3.3 다운그레이드 거부).
+M8 머지(PR #20). Phase 5 CI 검증에서 action-smoke 실패 발견 → action.yml `${{ }}` 설명문 함정(게이트 3겹 통과·CI만 포착)을 한 줄 수정·재푸시, master green 확인 후 사용자 머지. plan 아카이브·PRD complete는 report 지침대로 Operator Runbook 완료까지 연기.
 
 ## Open Questions
 
 
 ## Last Updated
-2026-07-04T13:24:24.995Z
+2026-07-07T10:17:55.487Z

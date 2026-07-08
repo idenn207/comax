@@ -8,6 +8,7 @@
     "CLAUDE_CODE_MAX_OUTPUT_TOKENS": "100000",
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50",
     "MCCP_CONTEXT_MONITOR_COST_MODE": "notify",
+    "MCCP_CONTEXT_MONITOR_COST_WARNINGS": "false",
     "MCCP_DISABLED_HOOKS": "pre:bash:gateguard-fact-force,pre:edit-write:gateguard-fact-force",
     "MCCP_RECEIPT_DEBUG": "1"
   },
