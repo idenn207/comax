@@ -7,7 +7,7 @@ import { mainNav } from '@/lib/site';
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-[oklch(98.5%_0.002_260/0.72)] backdrop-blur-md backdrop-saturate-150 [[data-theme='dark']_&]:bg-[oklch(15%_0.006_260/0.72)]">
+    <header className="sticky top-0 z-30 border-b border-border bg-[color-mix(in_oklch,var(--color-surface)_72%,transparent)] backdrop-blur-md backdrop-saturate-150">
       <div className="mx-auto flex h-[var(--header-height)] max-w-content items-center gap-6 px-4 sm:px-6">
         <Link href="/" className="shrink-0 rounded-sm" aria-label="Comax Secrets 홈">
           <Logo />

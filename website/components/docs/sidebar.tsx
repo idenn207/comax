@@ -11,10 +11,16 @@ export function DocsSidebar() {
     <nav aria-label="문서 목차" className="flex flex-col gap-5">
       {docsNav.map((group) => (
         <div key={group.group}>
-          <h2 className="mb-2 pl-3 text-xs font-semibold uppercase tracking-wider text-text-faint">
+          {/* Group label is not a heading: it precedes the page <h1> in DOM
+              order, so making it an <h2> breaks the document outline. The <ul>
+              carries the group name programmatically via aria-label instead. */}
+          <p
+            aria-hidden
+            className="mb-2 pl-3 text-xs font-semibold uppercase tracking-wider text-text-faint"
+          >
             {group.group}
-          </h2>
-          <ul className="flex flex-col">
+          </p>
+          <ul aria-label={group.group} className="flex flex-col">
             {group.items.map((item) => {
               const href = docHref(item.slug);
               const active = pathname === href;

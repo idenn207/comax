@@ -21,6 +21,13 @@ const variantIcon: Record<Variant, typeof Info> = {
   warning: TriangleAlert,
   danger: ShieldAlert,
 };
+// The icon is aria-hidden, so severity must reach screen readers as text —
+// color/shape alone never carries meaning (DESIGN "색만으로 상태 전달 금지").
+const variantLabel: Record<Variant, string> = {
+  info: '정보',
+  warning: '경고',
+  danger: '위험',
+};
 
 // Tinted ground + tinted hairline + semantic icon (styles in globals.css
 // `.doc-alert`). Meaning is carried by icon + tint, never a side-stripe.
@@ -32,6 +39,7 @@ function Callout({ type = 'note', children }: { type?: CalloutType; children: Re
       <span className="doc-alert-icon" aria-hidden>
         <Icon className="h-4 w-4" />
       </span>
+      <span className="sr-only">{variantLabel[variant]}: </span>
       <div className="doc-alert-body">{children}</div>
     </div>
   );
@@ -70,6 +78,16 @@ export const mdxComponents: MDXComponents = {
       </a>
     );
   },
+  // Wrap GFM tables in a scroll container so a long nowrap command cell
+  // (e.g. `secret export --format github-env`) scrolls inside the block instead
+  // of pushing the whole page into horizontal scroll on narrow viewports
+  // (WCAG 1.4.10 Reflow). Uses plain global classes (`.doc-table`,
+  // `.scrollbar-thin`) since this file is outside Tailwind's content globs.
+  table: ({ children, ...props }) => (
+    <div className="doc-table scrollbar-thin" role="region" aria-label="표" tabIndex={0}>
+      <table {...props}>{children}</table>
+    </div>
+  ),
   Callout,
   Badge,
 };

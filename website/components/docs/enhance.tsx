@@ -43,13 +43,15 @@ export function DocsEnhance() {
 
       const setIdle = (btn: HTMLButtonElement) => {
         btn.dataset.copied = 'false';
+        // aria-label overrides the child text as the accessible name, so keep it
+        // in sync with the visible state for screen-reader users.
+        btn.setAttribute('aria-label', '코드 복사');
         btn.innerHTML = `${COPY_SVG}<span>복사</span>`;
       };
 
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = 'code-copy';
-      btn.setAttribute('aria-label', '코드 복사');
       setIdle(btn);
 
       btn.addEventListener('click', () => {
@@ -63,6 +65,7 @@ export function DocsEnhance() {
         ).replace(/\r/g, ''); // strip CR so pasted commands don't carry CRLF tails
         void navigator.clipboard?.writeText(code).then(() => {
           btn.dataset.copied = 'true';
+          btn.setAttribute('aria-label', '복사됨');
           btn.innerHTML = `${CHECK_SVG}<span>복사됨</span>`;
           timers.push(setTimeout(() => setIdle(btn), 1600));
         });

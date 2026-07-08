@@ -11,7 +11,15 @@ type Hit = { doc: SearchDoc; headingHits: { text: string; id: string }[] };
 export function DocSearch({ index }: { index: SearchDoc[] }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  // Server renders the cross-platform "Ctrl K"; Mac clients correct to ⌘K after
+  // mount (matches the handler, which accepts both metaKey and ctrlKey).
+  const [isMac, setIsMac] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    const nav = typeof navigator !== 'undefined' ? navigator : undefined;
+    setIsMac(/mac|iphone|ipad|ipod/i.test(nav?.platform || nav?.userAgent || ''));
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -48,17 +56,21 @@ export function DocSearch({ index }: { index: SearchDoc[] }) {
       <Dialog.Trigger asChild>
         <button
           type="button"
+          aria-keyshortcuts="Control+K Meta+K"
           className="flex w-full items-center gap-2 rounded-md border border-border bg-surface-elevated px-3 py-2 text-sm text-text-faint transition-colors hover:border-border-strong"
         >
           <Search className="h-4 w-4" aria-hidden />
           <span className="flex-1 text-left">문서 검색</span>
-          <kbd className="rounded border border-border px-1.5 py-0.5 font-mono text-xs text-muted">
-            ⌘K
+          <kbd
+            aria-hidden
+            className="rounded border border-border px-1.5 py-0.5 font-mono text-xs text-muted"
+          >
+            {isMac ? '⌘K' : 'Ctrl K'}
           </kbd>
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-[oklch(0%_0_0/0.4)]" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-[var(--color-overlay)]" />
         <Dialog.Content
           className="fixed left-1/2 top-[12vh] z-50 w-[min(36rem,92vw)] -translate-x-1/2 overflow-hidden rounded-xl border border-border bg-surface-elevated shadow-lg focus:outline-none"
           aria-describedby={undefined}
@@ -74,7 +86,7 @@ export function DocSearch({ index }: { index: SearchDoc[] }) {
               className="w-full bg-transparent py-3 text-md text-text outline-none placeholder:text-text-faint"
             />
           </div>
-          <ul className="max-h-[60vh] overflow-y-auto p-2">
+          <ul className="scrollbar-thin max-h-[60vh] overflow-y-auto p-2">
             {results.length === 0 && (
               <li className="px-3 py-6 text-center text-sm text-text-faint">결과가 없습니다.</li>
             )}

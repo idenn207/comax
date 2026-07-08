@@ -44,10 +44,12 @@ export type NavItem = {
   external?: boolean;
 };
 
+// Each nav item points to a distinct destination — no two labels share an href
+// (link text must have standalone meaning). "문서" lands on the Quickstart index.
 export const mainNav: NavItem[] = [
   { title: '문서', href: '/docs' },
-  { title: 'Quickstart', href: '/docs' },
   { title: 'CLI', href: '/docs/cli' },
   { title: 'SDK', href: '/docs/sdk' },
+  { title: 'GitHub Actions', href: '/docs/github-actions' },
   { title: 'GitHub', href: siteConfig.repo, external: true },
 ];

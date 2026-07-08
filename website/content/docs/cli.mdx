@@ -226,7 +226,7 @@ secret webhook delete --id <ID>
 
 서명 시크릿은 등록 시 **한 번만** 출력됩니다. 다시 조회할 수 없으므로 지금 저장하세요. 회전하려면 삭제 후 재등록.
 
-## 전역 플래그
+## 전역 플래그 {#global-flags}
 
 모든 커맨드는 다음을 지원합니다:
 
@@ -236,7 +236,7 @@ secret <command> --credentials /path/to/creds.json
 
 `--credentials`를 지정하지 않으면 `~/.config/comax/credentials.json`을 사용합니다 (기본).
 
-## 환경 해석
+## 환경 해석 {#env-resolution}
 
 `pull`, `push`, `get`, `set`, `diff`, `run`, `export` 명령은 환경을 자동으로 해석합니다:
 

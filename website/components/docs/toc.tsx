@@ -9,15 +9,18 @@ export function Toc({ items }: { items: TocItem[] }) {
 
   useEffect(() => {
     if (items.length === 0) return;
+    // Track which headings sit in the band, then highlight the first one in
+    // document order. threshold:0 (not 1) so headings taller than the band, or
+    // scrolled through quickly, still register — the old threshold:1 could leave
+    // the active marker stale.
+    const visible = new Map<string, boolean>();
     const observer = new IntersectionObserver(
       (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setActiveId(entry.target.id);
-          }
-        }
+        for (const entry of entries) visible.set(entry.target.id, entry.isIntersecting);
+        const firstVisible = items.find((it) => visible.get(it.id));
+        if (firstVisible) setActiveId(firstVisible.id);
       },
-      { rootMargin: '-80px 0px -70% 0px', threshold: 1 },
+      { rootMargin: '-80px 0px -70% 0px', threshold: 0 },
     );
     for (const item of items) {
       const el = document.getElementById(item.id);

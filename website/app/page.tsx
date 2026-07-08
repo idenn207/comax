@@ -369,7 +369,7 @@ export default function HomePage() {
                 </span>
                 <span className="ml-1 font-mono text-xs text-muted">terminal · secret</span>
               </div>
-              <pre className="overflow-x-auto px-[18px] py-4 font-mono text-sm leading-[1.9] text-code-text">
+              <pre className="scrollbar-thin overflow-x-auto px-[18px] py-4 font-mono text-sm leading-[1.9] text-code-text">
                 <code>
                   <div className="text-text-faint"># 값을 올리고, 어디서든 주입해서 실행</div>
                   <div>
