@@ -274,7 +274,7 @@ git diff --stat
 
 ## Codex Adversarial Review
 
-- 호출: `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/0.4.0/scripts/lib/codex-invoke.js adversarial-review --impeccable-available` (fail-closed Bash wrapper, mccp v0.4.0)
+- 호출: `node $HOME/.claude/plugins/cache/mccp/mccp/0.4.0/scripts/lib/codex-invoke.js adversarial-review --impeccable-available` (fail-closed Bash wrapper, mccp v0.4.0)
 - 라운드 수: 1 (cap=1, R1에서 모든 finding을 plan 본문에 직접 absorb)
 - Codex session 참조: `019ec6da-e2b1-7371-aac7-e4de92287094`
 - Verdict: `needs-attention` → "No-ship: M2 closure still has a real gate gap and the plan is not PRP-ready because absorbed findings are not executable tasks."

@@ -223,7 +223,7 @@ routing mode: auto (implement 단계에서 유효). plan 단계는 렌더 UI가 
 
 ## Codex Adversarial Review
 
-- 호출: `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2)
+- 호출: `node $HOME/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2)
 - 라운드 수: 1 (needs-attention, blocking=false, class=ok, HIGH/CRITICAL 0 → 재실행 불필요)
 - 합치 결론: 정적 사이트라 보안 노출은 없음. 단 "빌드 성공 ≠ 정확성" — SEO URL·docs drift·nav/검색 커버리지·토큰 parity가 build만으로 검증 안 됨. acceptance/CI에 검증 게이트 추가로 흡수.
 - YAGNI Triage:
@@ -239,7 +239,7 @@ routing mode: auto (implement 단계에서 유효). plan 단계는 렌더 UI가 
 
 ## Codex Implementation Review
 
-- 호출: `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2) — implement-time 결정 focus.
+- 호출: `node $HOME/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2) — implement-time 결정 focus.
 - 라운드 수: 1 (needs-attention, blocking=false, class=ok, HIGH/CRITICAL 0 → 재실행 불필요)
 - 합치 결론: 정적 SSG 사이트라 보안 표면 없음. MDX 라우팅 404·빌드 재현성·소스-대조 drift·SITE_URL fail-closed를 명시화하라는 4건 — 전부 흡수.
 - YAGNI Triage:

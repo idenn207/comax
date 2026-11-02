@@ -217,7 +217,7 @@ cd web/dashboard && npm run lint && npm run typecheck && npm test && npm run bui
 
 ## Codex Adversarial Review
 
-- 호출: `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2; `--impeccable-available`로 design-scope 제외 → 보안/정합성/성능 집중)
+- 호출: `node $HOME/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2; `--impeccable-available`로 design-scope 제외 → 보안/정합성/성능 집중)
 - 라운드 수: 1 (R1)
 - 합치 결론: **needs-attention** — 배달 중복 claim·SSRF 완화 부족·서명 시크릿 회전 부재 3건.
 - YAGNI Triage / 흡수:

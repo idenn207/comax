@@ -52,7 +52,7 @@ AI 슬롭으로 읽힐 수 있으니 렌더가 실제로 그렇게 생겼는지 
 ## 기술 게이트·함정 (다음 세션이 반드시 알 것)
 
 - **impeccable-guard 훅**: UI 파일 편집 전 반드시 `Skill(skill="impeccable", args="craft ...")`로 스킬을 **실제 호출**해야 함(슬래시 커맨드 로드만으론 차단됨).
-- **impeccable setup**: `node "C:/Users/skypark207/.claude/skills/impeccable/scripts/context.mjs"` (프로젝트 로컬 아님, 스킬 홈에서 실행). 참고 레퍼런스: `reference/craft.md`, `reference/brand.md`. 네이티브 이미지 생성 없음 → 목업 생성 단계 skip, 첨부 렌더가 계약.
+- **impeccable setup**: `node "$HOME/.claude/skills/impeccable/scripts/context.mjs"` (프로젝트 로컬 아님, 스킬 홈에서 실행). 참고 레퍼런스: `reference/craft.md`, `reference/brand.md`. 네이티브 이미지 생성 없음 → 목업 생성 단계 skip, 첨부 렌더가 계약.
 - **Playwright**: 리포에 website용 미설치. `dashboard/node_modules/playwright`를 절대 file URL로 import(`import pw from 'file:///.../dashboard/node_modules/playwright/index.js'; const {chromium}=pw;` — CommonJS라 default import).
 - **reveal 시스템**: `.reveal`은 `html.is-ready`에서만 `opacity:0`. Playwright `fullPage` 캡처 시 **스크롤로 IntersectionObserver를 트리거**해야 하단 섹션이 보임(스크롤 없으면 빈 페이지처럼 찍힘 — 코드 버그 아님).
 - **히어로 stage 모바일 오버플로우**: 칩이 `left:75~78%`+nowrap이라 좁은 뷰포트서 넘침. 현재 `overflow-x-clip` + 모바일 `scale-[0.82]`로 처리. 렌더 기준으로 재검토.
