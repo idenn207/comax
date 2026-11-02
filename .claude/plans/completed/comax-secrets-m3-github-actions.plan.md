@@ -220,7 +220,7 @@ cd web/dashboard && npm run lint && npm run typecheck && npm test && npm run bui
 
 ## Codex Adversarial Review
 
-- 호출: `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2)
+- 호출: `node $HOME/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2)
 - 라운드 수: 1 (R1) → 사용자 결정 흡수 후 revised-plan R2 (아래 갱신)
 - R1 합치 결론: **needs-attention** — CI 토큰의 권한·폐기·노출을 문서 경고로 넘겨 실패 모드 과다.
 - R1 YAGNI Triage / 해소:

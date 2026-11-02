@@ -127,7 +127,7 @@ stat -c '%a' /tmp/redis.local.conf   # 0600 확인 (win: icacls)
 
 ## Codex Adversarial Review
 
-- 호출: `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2; `--impeccable-available`)
+- 호출: `node $HOME/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2; `--impeccable-available`)
 - 라운드 수: 1 (classification=ok, blocking=false)
 - 합치 결론: verdict=`needs-attention` 3건(HIGH 2 + MEDIUM 1). 전부 R1 계획 편집으로 흡수 → 0 blocking. 계획 단계 finding이라 plan 본문 수정으로 완전 해소(코드 미작성).
 - YAGNI Triage:
@@ -142,7 +142,7 @@ stat -c '%a' /tmp/redis.local.conf   # 0600 확인 (win: icacls)
 
 ## Codex Implementation Review
 
-- 호출: `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2; `--impeccable-available`)
+- 호출: `node $HOME/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2; `--impeccable-available`)
 - 라운드 수: 1 (classification=ok, blocking=false)
 - 합치 결론: verdict=`needs-attention` 2건(HIGH 2). 새 implement-time 결정(안전 경로 판정 메커니즘·`self` 예약어)에 focus. 둘 다 R1 계획 편집으로 완전 흡수 → 0 blocking. dedupe 미적용(신규 결정 존재).
 - YAGNI Triage:

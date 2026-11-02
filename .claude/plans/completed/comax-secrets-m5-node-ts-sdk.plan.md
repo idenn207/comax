@@ -150,7 +150,7 @@ go build ./...             # 서버/CLI 회귀 없음(SDK는 Go 빌드 무관)
 
 ## Codex Adversarial Review
 
-- 호출: `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2)
+- 호출: `node $HOME/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2)
 - 라운드 수: 1 (R1에서 4 findings 전부 계획 수정으로 흡수 → R2 불필요)
 - 합치 결론: `needs-attention` — SDK가 (1) fetch stall을 전 요청 장애로 증폭, (2) 단일 키 조회를 env 전체 평문 적재로 확대, (3) mocked-only 테스트로 서버 계약 드리프트 미검출할 수 있다는 3축 지적. 모두 수용해 D5/D8/D9 + Task 3/5/6 + acceptance에 반영.
 - YAGNI Triage:

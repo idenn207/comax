@@ -169,7 +169,7 @@ gitleaks detect --source . --redact
 
 ## Codex Adversarial Review
 
-- 호출: `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2) · classification=ok · blocking=false
+- 호출: `node $HOME/.claude/plugins/cache/mccp/mccp/1.20.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2) · classification=ok · blocking=false
 - 라운드 수: 1 (R1에서 4건 전부 ACCEPT_NOW 흡수 → HIGH 잔여 0 → 5.4 재실행 불필요)
 - 합치 결론: **needs-attention 4건**(HIGH×2, MEDIUM×2) — 전부 플랜에 흡수. 시크릿 도구 첫 공개 릴리스에 **provenance/서명 검증**·**`v1` 승급 보호**·**rename 마이그레이션 게이트**·**최소 RC 서버-boot**을 차단조건으로 추가.
 - YAGNI Triage:
@@ -190,7 +190,7 @@ gitleaks detect --source . --redact
 
 ## Codex Implementation Review
 
-- 호출: `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/1.20.5/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2) · classification=ok · blocking=false
+- 호출: `node $HOME/.claude/plugins/cache/mccp/mccp/1.20.5/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, v0.2.2) · classification=ok · blocking=false
 - 라운드 수: 1 (구현-time 결정 3건 + security-reviewer 11건 전부 R1에서 흡수 → HIGH 잔여 0 → 재실행 불필요)
 - 합치 결론: **needs-attention** — 공급망 검증이 아직 우회 가능. attestation을 요청 버전/워크플로/커밋에 바인딩하고, `v1` 재지정을 tag ruleset로 원천 차단하고, 첫 npm publish를 exact tag에 강제 연결해야 함.
 - YAGNI Triage:

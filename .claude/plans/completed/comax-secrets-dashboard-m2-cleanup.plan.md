@@ -403,7 +403,7 @@ Select-String -Path README.md, .claude/prds/*.md, .claude/reports/*.md, .claude/
 ## Next Steps (mccp 컨벤션)
 
 1. **Phase 5 — Plan-Codex 게이트 (자동)** — `/mccp:plan` 진입 시 자동 실행됨. 본 plan에 placeholder 섹션이 곧 채워진다.
-2. **Receipt 자동 기록** — Phase 5.6에서 `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/0.4.0/scripts/receipt/cli.js write --gate mccp-plan-codex` 자동 호출.
+2. **Receipt 자동 기록** — Phase 5.6에서 `node $HOME/.claude/plugins/cache/mccp/mccp/0.4.0/scripts/receipt/cli.js write --gate mccp-plan-codex` 자동 호출.
 3. **`/mccp:prp-implement` 실행**:
    ```
    /mccp:prp-implement .claude/plans/comax-secrets-dashboard-m2-cleanup.plan.md
@@ -474,7 +474,7 @@ Select-String -Path README.md, .claude/prds/*.md, .claude/reports/*.md, .claude/
 
 ## Codex Adversarial Review
 
-- 호출: `node C:/Users/skypark207/.claude/plugins/cache/mccp/mccp/0.4.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, mccp v0.4.0)
+- 호출: `node $HOME/.claude/plugins/cache/mccp/mccp/0.4.0/scripts/lib/codex-invoke.js adversarial-review` (fail-closed Bash wrapper, mccp v0.4.0)
 - 라운드 수: 1 (cap=1, R1에서 모든 finding을 plan 본문에 직접 absorb)
 - 합치 결론: **needs-attention** verdict 수용. D3 router mismatch / D1 cross-token oracle / D2 prune grace / D5 raw vs gzip 4개 finding 모두 ACCEPT_NOW + plan 본문 정정으로 해결.
 - YAGNI Triage:
